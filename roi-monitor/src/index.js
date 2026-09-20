@@ -269,7 +269,7 @@ const FEISHU_DEFAULTS = {
   enabled: false,
   appId: '',
   appSecret: '',
-  chatId: 'oc_6da33b15f6dee3720d2e3349a5c00216',
+  chatId: 'oc_填你的飞书群ID',
   chatName: '越南韩束ROI预警',
   bitable: {
     appToken: 'AMD3bW73qanEQmsg7mCcfFB6nTd',

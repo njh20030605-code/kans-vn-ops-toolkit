@@ -23,7 +23,7 @@ EOF
 rm -rf "$R/feishu-api/intern-manual"
 
 # 3. 同事姓名 → 角色
-grep -rIl -E 'Ryan|Pham' "$R/feishu-api" | while read -r f; do sd -e 's/Ryan/InternA/g' -e 's/Pham/InternB/g' -e 's/ryan/InternA/g' "$f"; done
+(grep -rIl -E 'Ryan|Pham' "$R/feishu-api" || true) | while read -r f; do sd -e 's/Ryan/InternA/g' -e 's/Pham/InternB/g' -e 's/ryan/InternA/g' "$f"; done
 sd 's/杨佳林(Jasper)/Jasper Yang/g; s/杨佳林/Jasper/g' "$R/feishu-api/bot.js"
 
 # 4. 飞书人 ID / 群 ID 清空（本机配置里有，公开副本不带）

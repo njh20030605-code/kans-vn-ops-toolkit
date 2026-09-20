@@ -196,7 +196,7 @@ Windows 这台**直接调飞书开放 API**,不经过任何中转、不依赖那
   "enabled": true,
   "appId": "cli_xxx",
   "appSecret": "xxx",
-  "chatId": "oc_6da33b15f6dee3720d2e3349a5c00216",   // 越南韩束ROI预警
+  "chatId": "oc_填你的飞书群ID",   // 越南韩束ROI预警
   "bitable": {
     "appToken": "AMD3bW73qanEQmsg7mCcfFB6nTd",
     "tableId": "tblT9nDZFnVa90qO",          // 命中明细

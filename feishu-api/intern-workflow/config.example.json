@@ -1,0 +1,32 @@
+{
+  "_说明": "复制为 config.json。appToken=实习生日清多维表格；tables=每个实习生一张表（键=interns[].name）；history=打卡历史表；shops=店铺选项；interns=实习生名单",
+  "appToken": "填多维表格appToken",
+  "url": "https://你的域名.feishu.cn/base/appToken",
+  "tables": {
+    "InternA": "tbl填表ID",
+    "InternB": "tbl填表ID"
+  },
+  "history": "tbl填历史表ID",
+  "shops": [
+    "店铺A",
+    "店铺B"
+  ],
+  "interns": [
+    {
+      "name": "InternA",
+      "full": "实习生A",
+      "shops": [
+        "店铺A"
+      ],
+      "group": "A 工作群"
+    },
+    {
+      "name": "InternB",
+      "full": "实习生B",
+      "shops": [
+        "店铺B"
+      ],
+      "group": "B 工作群"
+    }
+  ]
+}

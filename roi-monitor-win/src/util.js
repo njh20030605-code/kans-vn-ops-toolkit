@@ -58,6 +58,9 @@ export function loadJson(relOrAbs) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
+/** 品牌名，用在通知标题里；config.json 的 brand 字段，默认 KANS。 */
+export const BRAND = (() => { try { return loadJson('config.json').brand || 'KANS'; } catch { return 'KANS'; } })();
+
 export function loadConfig() {
   const raw = loadJson('config.json');
   return deepExpandEnv(raw);

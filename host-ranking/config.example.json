@@ -1,0 +1,17 @@
+{
+  "_说明": "复制为 config.json 覆盖默认值；只写要改的字段即可",
+  "workbook_id": "填 Google 表 ID（文件→共享→发布到网络，或链接里 /d/ 后面那串）",
+  "room_keywords": [
+    "直播间tab名关键词1",
+    "关键词2"
+  ],
+  "vnd_per_rmb": 3860,
+  "output_dir": "~/Desktop/主播排名报表",
+  "columns": {
+    "date": 0,
+    "host_vn": 7,
+    "host_cn": 8,
+    "gmv": 13,
+    "roi": 16
+  }
+}

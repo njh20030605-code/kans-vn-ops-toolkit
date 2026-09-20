@@ -1,0 +1,8 @@
+{
+  "_说明": "复制为 config.json。app_token=预警程序写入的多维表格；hit_table=命中明细表；daily_table=计划日汇总表；board_today/board_7d=两张看板表（用 roi-monitor 的表结构，看板表需先手动建好同名字段）",
+  "app_token": "填多维表格appToken",
+  "hit_table": "tbl填命中明细",
+  "daily_table": "tbl填计划日汇总",
+  "board_today": "tbl填看板当天",
+  "board_7d": "tbl填看板近7天"
+}

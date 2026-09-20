@@ -1,8 +1,8 @@
 // 一次性：创建「广告实习生每日工作流」多维表格（InternA / InternB 各一张 + 打卡历史）
-const { api } = require('/Users/Zhuanz1/Desktop/feishu-api/creative-exclusion/lib.js');
+const { api } = require('../creative-exclusion/lib.js');
 const fs = require('fs');
 const T = require('./tasks.js');
-const FOLDER = 'EmnkfFX7olLdS3driGScabKfnxd';
+const FOLDER = require('../settings').output_folder;
 const CFG = __dirname + '/config.json';
 
 const opt = (names, colors) => ({ options: names.map((n, i) => ({ name: n, color: colors ? colors[i] : i % 10 })) });
@@ -10,7 +10,7 @@ const PRI_OPTS = opt([T.P0, T.P1, T.P2], [0, 1, 4]);           // 红 / 橙 / �
 const FREQ_OPTS = opt([T.HOURLY, T.TWICE, T.DAILY, T.WEEKLY], [2, 3, 5, 6]);
 const PERM_OPTS = opt([T.RO, T.WITH, T.APPR], [4, 3, 0]);
 const SRC_OPTS = opt([T.MANUAL, T.CHAT16, T.CHAT17, T.CHAT18], [7, 5, 5, 5]);
-const SHOP_OPTS = opt(['KANS Globe', 'One Leaf', 'KANS Official', '全部 All'], [4, 4, 0, 7]);
+const SHOP_OPTS = opt([...(require('./config.json').shops || []), '全部 All'], [4, 4, 0, 7]);
 
 function internFields() {
   return [
@@ -71,7 +71,7 @@ function historyFields() {
         '店铺 Shop': t.shop === '__MY__' ? it.shops : [t.shop],
         '权限 Permission': t.perm,
         '怎么做 How': t.how,
-        '登记到哪 Output': t.out.replace('InternA 工作群', it.group),
+        '登记到哪 Output': t.out.replace('{group}', it.group),
         '手册章节 Manual §': t.sec,
         '来源 Source': t.src,
         '序号 #': t.n,

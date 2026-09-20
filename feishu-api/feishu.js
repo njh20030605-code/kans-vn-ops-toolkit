@@ -42,9 +42,9 @@ function creds() {
   if (!id || !secret) {
     console.error(
       '缺少凭证。任选一种：\n' +
-      '  export FEISHU_APP_ID=cli_aa030355f5f89cde\n' +
+      '  export FEISHU_APP_ID=cli_xxxxxxxx（开放平台应用的 App ID）\n' +
       '  export FEISHU_APP_SECRET=<你的 App Secret>\n' +
-      '或写入 ~/.feishu/credentials.json：{"app_id":"cli_aa030355f5f89cde","app_secret":"..."}'
+      '或写入 ~/.feishu/credentials.json：{"app_id":"cli_xxxxxxxx","app_secret":"..."}'
     );
     process.exit(1);
   }

@@ -1,5 +1,6 @@
 // md -> 飞书 docx blocks（标题/项目符号/有序/分割线/粗体/行内码/图片/表格）
 const fs = require('fs'); const path = require('path');
+const SETTINGS = require('./settings');
 async function token() {
   const c = JSON.parse(fs.readFileSync(process.env.HOME + '/.feishu/credentials.json', 'utf8'));
   const r = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
@@ -103,7 +104,7 @@ async function clearDoc(docId) {
   const [mdPath, title, docTokenArg] = a;
   let docId = docTokenArg;
   if (!docId) {
-    const c = await api('POST', '/open-apis/docx/v1/documents', { title, folder_token: 'EmnkfFX7olLdS3driGScabKfnxd' });
+    const c = await api('POST', '/open-apis/docx/v1/documents', { title, folder_token: SETTINGS.output_folder });
     if (c.code !== 0) throw new Error('create: ' + JSON.stringify(c)); docId = c.data.document.document_id;
   } else if (clear) { await clearDoc(docId); if (title) await api('PATCH', `/open-apis/docx/v1/documents/${docId}/blocks/${docId}`, { }); }
   for (const seg of parse(fs.readFileSync(mdPath, 'utf8'))) {
@@ -111,5 +112,5 @@ async function clearDoc(docId) {
     else if (seg.kind === 'table') { await addTable(docId, seg.rows); process.stderr.write(`table ${seg.rows.length}x ok\n`); }
     else for (let i = 0; i < seg.blocks.length; i += 40) await addChildren(docId, seg.blocks.slice(i, i + 40));
   }
-  console.log(`https://gvh59x1f62p.feishu.cn/docx/${docId}`);
+  console.log(SETTINGS.url('docx', docId));
 })().catch(e => { console.error(e.message); process.exit(1); });

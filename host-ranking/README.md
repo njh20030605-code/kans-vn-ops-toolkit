@@ -23,7 +23,8 @@
 
 ```bash
 pip install -r requirements.txt
-export KANS_WORKBOOK_ID=<线上 Google 表的 ID>   # 或直接改 report_core.py 顶部的 WORKBOOK_ID
+cp config.example.json config.json   # 填 Google 表 ID、直播间 tab 关键词、汇率、列索引；只写要改的字段
+# 或只用环境变量指定表：export KANS_WORKBOOK_ID=<线上 Google 表的 ID>
 python3 main_app.py
 ```
 

@@ -8,7 +8,8 @@
  *   write_sheet   写已有表格区域 {url|token, sheet, start?, rows:[[...]]}
  */
 
-const DEFAULT_FOLDER = 'EmnkfFX7olLdS3driGScabKfnxd';   // 「My Claude 产出」in ADS-数据分析
+const SETTINGS = require('./settings');
+const DEFAULT_FOLDER = SETTINGS.output_folder;   // 新建文档/表格默认放这个云盘文件夹
 const MAX_ROWS = 1000;
 const MAX_COLS = 60;
 
@@ -47,7 +48,7 @@ async function createSheet(api, a) {
     { title, folder_token: a.folder_token || DEFAULT_FOLDER });
   if (c.code !== 0) throw new Error(`建表失败：${c.msg}`);
   const token = c.data.spreadsheet.spreadsheet_token;
-  const url = c.data.spreadsheet.url || `https://gvh59x1f62p.feishu.cn/sheets/${token}`;
+  const url = c.data.spreadsheet.url || SETTINGS.url('sheets', token);
 
   const q = await api('GET', `/open-apis/sheets/v3/spreadsheets/${token}/sheets/query`);
   let firstId = q.data?.sheets?.[0]?.sheet_id;
@@ -84,7 +85,7 @@ async function createDoc(api, a) {
     { title, folder_token: a.folder_token || DEFAULT_FOLDER });
   if (c.code !== 0) throw new Error(`建文档失败：${c.msg}`);
   const id = c.data.document.document_id;
-  const url = `https://gvh59x1f62p.feishu.cn/docx/${id}`;
+  const url = SETTINGS.url('docx', id);
   if (a.text) await appendBlocks(api, id, id, a.text);
   return { ok: true, what: `新建文档《${title}》`, url };
 }
@@ -105,7 +106,7 @@ async function appendDoc(api, a) {
   const { type, token } = await resolveToken(api, a.url || a.token);
   if (type && type !== 'docx') throw new Error(`append_doc 只支持新版文档，这个是 ${type}`);
   await appendBlocks(api, token, token, a.text || '');
-  return { ok: true, what: '已追加内容到文档', url: a.url || `https://gvh59x1f62p.feishu.cn/docx/${token}` };
+  return { ok: true, what: '已追加内容到文档', url: a.url || SETTINGS.url('docx', token) };
 }
 
 async function writeSheet(api, a) {
@@ -130,7 +131,7 @@ async function writeSheet(api, a) {
   const w = await api('PUT', `/open-apis/sheets/v2/spreadsheets/${token}/values`,
     { valueRange: { range, values: rows } });
   if (w.code !== 0) throw new Error(`写入失败：${w.msg}`);
-  return { ok: true, what: `已写入 ${rows.length} 行到 ${range}`, url: a.url || `https://gvh59x1f62p.feishu.cn/sheets/${token}` };
+  return { ok: true, what: `已写入 ${rows.length} 行到 ${range}`, url: a.url || SETTINGS.url('sheets', token) };
 }
 
 const HANDLERS = { create_sheet: createSheet, create_doc: createDoc, append_doc: appendDoc, write_sheet: writeSheet };

@@ -16,6 +16,7 @@
 cd ~/Desktop/kans-roi-monitor
 npm install                       # 装依赖(已装过可跳过)
 cp campaigns.example.json campaigns.json   # 填入要监控的推广系列 ID / 商品 ID
+# config.json：brand（通知标题里的品牌名）、costThresholdCNY / roiThreshold（命中阈值）、vndToCnyRate（汇率）、notify（通知通道）
 cp .env.example .env              # 按需填通知通道的 key
 npx playwright install chromium   # 装浏览器内核(已装过可跳过)
 ```

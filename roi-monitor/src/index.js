@@ -3,7 +3,7 @@ import 'dotenv/config';
 import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadConfig, loadCampaigns, info, warn, error, formatDT, VERSION, VERSION_NOTE, ROOT } from './util.js';
+import { loadConfig, loadCampaigns, info, warn, error, formatDT, VERSION, VERSION_NOTE, ROOT, BRAND } from './util.js';
 import { launchBrowser, getPage, detectLoginState, hardDeadline } from './browser.js';
 import { classifyPageState } from './classify.js';
 import { runOnce } from './run.js';
@@ -87,7 +87,7 @@ async function cmdScan(config, campaigns, with7d) {
 async function cmdStart(config, campaigns) {
   console.log('');
   console.log('══════════════════════════════════════════════');
-  console.log(`  KANS 预警 · 代码版本 ${VERSION}`);
+  console.log(`  ${BRAND} 预警 · 代码版本 ${VERSION}`);
   console.log(`  ${VERSION_NOTE}`);
   console.log('  (换过 src 里的文件后必须重开本窗口才生效)');
   console.log('══════════════════════════════════════════════');
@@ -164,7 +164,7 @@ async function main() {
   const with7d = flags.includes('--with-7d');
 
   if (cmd === 'help' || cmd === '-h' || cmd === '--help') {
-    console.log(`KANS 越南 GMV Max 高成本低ROI 素材预警(只读)
+    console.log(`${BRAND} 越南 GMV Max 高成本低ROI 素材预警(只读)
 
 用法:
   node src/index.js login          # 一次性手动登录 TikTok 卖家后台(持久 profile)
@@ -433,7 +433,7 @@ async function cmdFeishuTest(config) {
   }
   console.log('1) 往群里发一张测试卡片…');
   const r1 = await sendCard(config, {
-    title: '✅ KANS 预警 · 飞书通道测试',
+    title: `✅ ${BRAND} 预警 · 飞书通道测试`,
     template: 'green',
     lines: [
       '这是一条测试消息,看到它说明**推送通道已打通**。',
@@ -504,7 +504,7 @@ async function cmdTestNotify(config) {
   console.log('企业微信应用已配置:', !!(n.wecomApp?.corpid && !/\$\{/.test(n.wecomApp.corpid)));
   await notify(config, {
     level: 'alert',
-    title: '🔴 KANS 红色预警(测试)',
+    title: `🔴 ${BRAND} 红色预警(测试)`,
     body: '这是一条测试通知。若你在手机上看到它,说明手机推送已打通 ✅\n示例:MKT-白精华-0708 | @某达人 | ¥286 | ROI 0.4',
   });
   console.log('已发送测试通知。请查看手机/日志/output/ALERTS.log。');

@@ -13,6 +13,7 @@ import io
 import os
 import re
 import ssl
+import sys
 import urllib.request
 from datetime import datetime, timedelta
 
@@ -21,26 +22,48 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 # ============================================================
-# ★★★ 配置区（要改的都在这里） ★★★
+# ★★★ 配置区 ★★★
+# 默认值对应 KANS 越南的表；换成自己的表时，在本目录放一个 config.json 覆盖任意字段：
+#   {"workbook_id": "...", "room_keywords": ["..."], "vnd_per_rmb": 3860,
+#    "output_dir": "~/Desktop/主播排名报表", "columns": {"date":0,"host_vn":7,"host_cn":8,"gmv":13,"roi":16}}
+# 也可用环境变量 KANS_WORKBOOK_ID 单独指定表 ID。
 # ============================================================
-WORKBOOK_ID = os.environ.get("KANS_WORKBOOK_ID", "")  # 线上 Google 表 ID，本机通过环境变量或下面手填
+import json as _json
 
-# 要合并统计的直播间：tab 名里含这些关键词之一就纳入（不区分大小写）。
-# 现在两个直播间 tab 名是 "Tháng 07| SKINCARE" 和 "Tháng 07| OFFICIAL + KHTH"。
-ROOM_KEYWORDS = ["SKINCARE", "OFFICIAL", "KHTH"]
+_DEFAULTS = {
+    "workbook_id": "",   # 线上 Google 表（发布为 CSV）
+    "room_keywords": ["SKINCARE", "OFFICIAL", "KHTH"],   # tab 名含其一即纳入合并（不区分大小写）
+    "vnd_per_rmb": 3860,                                  # 1 元人民币 = 多少越南盾
+    "output_dir": "~/Desktop/KANS主播排名报表",           # 报表输出目录
+    "columns": {"date": 0, "host_vn": 7, "host_cn": 8, "gmv": 13, "roi": 16},  # 列索引，从 0 开始
+}
 
-# 固定汇率：1 元人民币 = 多少越南盾
-VND_PER_RMB = 3860
+def _load_cfg():
+    cfg = dict(_DEFAULTS)
+    here = os.path.dirname(os.path.abspath(__file__))
+    for cand in (os.path.join(here, "config.json"), os.path.join(os.path.dirname(getattr(sys, "executable", "")), "config.json")):
+        if cand and os.path.isfile(cand):
+            try:
+                user = _json.load(open(cand, encoding="utf-8"))
+                cols = {**cfg["columns"], **user.pop("columns", {})}
+                cfg.update(user); cfg["columns"] = cols
+                break
+            except Exception:  # noqa
+                pass
+    if os.environ.get("KANS_WORKBOOK_ID"):
+        cfg["workbook_id"] = os.environ["KANS_WORKBOOK_ID"]
+    return cfg
 
-# 报表输出目录（放桌面，方便人工找到转发）
-OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "Desktop", "KANS主播排名报表")
-
-# 列索引（两个 tab 结构一致，从 0 开始）
-COL_DATE = 0
-COL_HOST_VN = 7
-COL_HOST_CN = 8
-COL_GMV_HOST = 13     # 退前 GMV（越南盾）
-COL_ROI = 16
+_CFG = _load_cfg()
+WORKBOOK_ID = _CFG["workbook_id"]
+ROOM_KEYWORDS = _CFG["room_keywords"]
+VND_PER_RMB = _CFG["vnd_per_rmb"]
+OUTPUT_DIR = os.path.expanduser(_CFG["output_dir"])
+COL_DATE = _CFG["columns"]["date"]
+COL_HOST_VN = _CFG["columns"]["host_vn"]
+COL_HOST_CN = _CFG["columns"]["host_cn"]
+COL_GMV_HOST = _CFG["columns"]["gmv"]     # 退前 GMV（越南盾）
+COL_ROI = _CFG["columns"]["roi"]
 # ============================================================
 
 

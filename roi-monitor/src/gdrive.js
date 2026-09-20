@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { info, warn, resolvePath } from './util.js';
+import { info, warn, resolvePath, BRAND } from './util.js';
 
 export function driveEnabled(config) {
   const g = config.output?.gdrive;
@@ -59,7 +59,7 @@ export async function uploadStatusNote(config, DT, state, message) {
   const fname = `⚠️需人工-${state}-${DT}.txt`;
   const fpath = path.join(dir, fname);
   const content =
-    `KANS 高成本低ROI 预警程序 · 情况说明\n` +
+    `${BRAND} 高成本低ROI 预警程序 · 情况说明\n` +
     `时间(越南):${DT}\n` +
     `状态:${state}\n\n` +
     `${message}\n\n` +

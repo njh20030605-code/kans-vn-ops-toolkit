@@ -1,4 +1,9 @@
 {
+  "shops": [
+    "KANS Official",
+    "KANS Globe",
+    "One Leaf"
+  ],
   "app_token": "XijobxWUVaaWbtsAJ6ocbg1Kn2g",
   "table": "tblGYc5IntNPGC8D",
   "notify": {

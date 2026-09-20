@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { runOnce } from './run.js';
-import { loadConfig, loadCampaigns, vnNow, formatDT, info, warn, error, srcFingerprint, VERSION } from './util.js';
+import { loadConfig, loadCampaigns, vnNow, formatDT, info, warn, error, srcFingerprint, VERSION, BRAND } from './util.js';
 import { notify } from './notify.js';
 import { driveEnabled, uploadStatusNote } from './gdrive.js';
 import { feishuEnabled, sendCard, vnDateOf } from './feishu.js';
@@ -96,7 +96,7 @@ export function startScheduler(config, campaigns, deps) {
         if (alerted) {
           await notify(freshConfig, {
             level: 'alert',
-            title: '✅ KANS 预警已恢复正常',
+            title: `✅ ${BRAND} 预警已恢复正常`,
             body: `之前连续 ${consecutiveFailures} 轮没扫成,现在已经恢复,本轮扫描完成。`,
           }).catch(() => {});
           alerted = false;
@@ -135,7 +135,7 @@ export function startScheduler(config, campaigns, deps) {
           `  3) 电脑是否休眠/被关机`;
         await notify(freshConfig, {
           level: 'alert',
-          title: `⚠️ KANS 预警连续 ${consecutiveFailures} 轮没扫成`,
+          title: `⚠️ ${BRAND} 预警连续 ${consecutiveFailures} 轮没扫成`,
           body,
         }).catch(() => {});
         alerted = true;

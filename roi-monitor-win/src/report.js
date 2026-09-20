@@ -1,3 +1,4 @@
+import { BRAND } from './util.js';
 import { readDailyTotals, vnDateOf } from './feishu.js';
 
 /**
@@ -91,7 +92,7 @@ export async function buildDailyReport(config) {
   }
 
   return {
-    title: `📊 KANS 越南投放日报 · ${d1}`,
+    title: `📊 ${BRAND} 越南投放日报 · ${d1}`,
     template: A.roi > 0 && Ap.roi > 0 && A.roi < Ap.roi * 0.8 ? 'orange' : 'blue',
     lines,
   };
@@ -142,7 +143,7 @@ export function buildRedAlertCard(config, DT, redHits, histStats = new Map(), da
   if (config.feishu?.bitable?.appToken) {
     lines.push(`[点开底表看明细](https://gvh59x1f62p.feishu.cn/base/${config.feishu.bitable.appToken})`);
   }
-  return { title: `🔴 KANS 红色预警:${redHits.length} 条高耗低效素材(${DT})`, template: 'red', lines };
+  return { title: `🔴 ${BRAND} 红色预警:${redHits.length} 条高耗低效素材(${DT})`, template: 'red', lines };
 }
 
 /**

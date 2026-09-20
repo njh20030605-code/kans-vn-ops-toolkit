@@ -1,5 +1,6 @@
 const { api } = require('./lib');
-const APP = 'XijobxWUVaaWbtsAJ6ocbg1Kn2g';
+const CFG = require('./config.json');
+const APP = CFG.app_token;
 const OLD = ['tblL2yxqCUxt2n56', 'tblTQE0yyoujpFoX', 'tblLmLLH8w37J2ht'];
 const sel = (o, colors) => ({ options: o.map((n, i) => ({ name: n, color: colors ? colors[i] : [1,4,7,10,2,5,0,3,6,8,9,11,12,13,14,15,16,17][i % 18] })) });
 
@@ -8,12 +9,14 @@ const CAMPAIGNS = {
   'KANS Globe':    ['MKT-红运粉饼-Red Fortune Powder Palette-0819','MKT-防晒-White sunscreen-0830','MKT-祛痘次抛Anti Acne-0906','MKT-377次抛-377 Serum-0825','377次抛测试','直播间-防晒10条','tiktok-跨境店-0812'],
   'One Leaf':      ['maks buy two get one 买二送一7月10日','One leaf official-0903'],
 };
-const allCamps = Object.values(CAMPAIGNS).flat();
+// 店铺 → 计划 的映射以 config.json 的 campaign_shop 为准（上面的常量只是历史示例）
+const SHOPS = CFG.shops || [...new Set(Object.values(CFG.campaign_shop))];
+const allCamps = Object.keys(CFG.campaign_shop);
 
 const desc = (t) => ({ disable_sync: true, text: t });
 const fields = [
   { field_name: 'Creative ID',      type: 1, description: desc('素材ID，后台那串纯数字直接粘 / Creative ID from Ads Manager, digits only') },
-  { field_name: 'Shop',             type: 3, property: sel(['KANS Official', 'KANS Globe', 'One Leaf'], [1, 4, 7]), description: desc('店铺。在分组下点 + 新增会自动带上，选了 Campaign 机器人也会补 / Shop — auto-filled when you add a row under the group or pick a campaign') },
+  { field_name: 'Shop',             type: 3, property: sel(SHOPS, [1, 4, 7]), description: desc('店铺。在分组下点 + 新增会自动带上，选了 Campaign 机器人也会补 / Shop — auto-filled when you add a row under the group or pick a campaign') },
   { field_name: 'Campaign',         type: 3, property: sel(allCamps), description: desc('广告计划，下拉选；新计划在下拉里输入回车即可新增 / Campaign — pick from list, type + Enter to add a new one') },
   { field_name: 'Why',              type: 3, property: sel(['ROI<1.5 & Cost>70 CNY (7d)', 'Shaky / low-quality footage', 'Wrong mechanism / wrong product'], [1, 4, 7]), description: desc('排除原因，只有三种 / Reason — only these three qualify') },
   { field_name: 'Jasper: Exclude?', type: 3, property: sel(['Yes', 'No'], [8, 1]), description: desc('Jasper 填：Yes 排除 / No 驳回 — Jasper only: Yes = exclude, No = rejected') },

@@ -1,0 +1,14 @@
+{
+  "_说明": "复制为 settings.json 后填写。domain=你的飞书租户域名；owner.open_id=机器人只回应的人；output_folder=新建文档默认放的云盘文件夹 token；followup=投放跟进工作台所在多维表格与工作台表；creative_exclusion_app=素材排除表所在多维表格",
+  "domain": "xxxxxx.feishu.cn",
+  "owner": {
+    "open_id": "ou_填你的open_id",
+    "name": "你的名字"
+  },
+  "output_folder": "填云盘文件夹token",
+  "followup": {
+    "app_token": "填多维表格appToken",
+    "workbench_table": "tbl填工作台表ID"
+  },
+  "creative_exclusion_app": "填素材排除表appToken"
+}

@@ -49,7 +49,7 @@ async function push(items) {
     const f = r.fields, patch = {};
     const cid = txt(f['Creative ID']).replace(/\s+/g, '');
     // 三店各一列 Campaign，哪列有值就是哪个店
-    const SHOPS = ['KANS Official', 'KANS Globe', 'One Leaf'];
+    const SHOPS = CFG.shops || [...new Set(Object.values(CFG.campaign_shop))];
     let camp = '', campShop = '';
     for (const s of SHOPS) { const v = txt(f['Campaign · ' + s]); if (v) { camp = v; campShop = s; break; } }
     let shop = txt(f.Shop);

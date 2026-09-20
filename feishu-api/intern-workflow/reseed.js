@@ -1,5 +1,5 @@
 // 用 tasks.js 重灌两张实习生表（先清空再写入）。用法：node reseed.js [InternA|InternB]
-const { api } = require('/Users/Zhuanz1/Desktop/feishu-api/creative-exclusion/lib.js');
+const { api } = require('../creative-exclusion/lib.js');
 const cfg = require('./config.json'); const T = require('./tasks.js');
 const only = process.argv[2];
 (async () => {
@@ -12,7 +12,7 @@ const only = process.argv[2];
     const records = T.TASKS.map((t) => ({ fields: {
       '任务 Task': t.task, '✅ 今日完成 Done': false, '优先级 Priority': t.pri, '频率 Frequency': t.freq, '时间点 When': t.when,
       '店铺 Shop': t.shop === '__MY__' ? it.shops : [t.shop], '权限 Permission': t.perm, '怎么做 How': t.how,
-      '登记到哪 Output': t.out.replace('InternA 工作群', it.group), '手册章节 Manual §': t.sec, '来源 Source': t.src, '序号 #': t.n, '工作日期 Date': today,
+      '登记到哪 Output': t.out.replace('{group}', it.group), '手册章节 Manual §': t.sec, '来源 Source': t.src, '序号 #': t.n, '工作日期 Date': today,
     } }));
     await api('POST', `${base}/records/batch_create`, { records });
     console.log(it.name, 'deleted', old.length, 'inserted', records.length);

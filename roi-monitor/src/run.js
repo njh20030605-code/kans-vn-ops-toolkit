@@ -5,8 +5,7 @@ import {
   buildDashboardUrl,
   info,
   warn,
-  error,
-} from './util.js';
+  error, BRAND } from './util.js';
 import { getPage, gotoAndWaitTable, isPageResponsive, setLiveInterception } from './browser.js';
 import { classifyPageState } from './classify.js';
 import { scanCampaign } from './scan.js';
@@ -134,7 +133,7 @@ export async function runOnce(config, campaigns, deps) {
     error(msg);
     await notify(config, {
       level: 'alert',
-      title: `⛔ KANS 预警程序无法扫描(${DT})`,
+      title: `⛔ ${BRAND} 预警程序无法扫描(${DT})`,
       body: msg,
     });
     // 在 Google 文件夹里新建情况说明文件(满足"登录掉了就在云端说明情况")
@@ -297,11 +296,11 @@ export async function runOnce(config, campaigns, deps) {
         ...anomalies.map((a) => '❗ ' + a),
         ...failed.map((f) => `❌ 计划「${f.campaign}」[${f.caliber}] ${f.error}`),
       ].join('\n') + bailLine;
-    await notify(config, { level: 'alert', title: `⚠️ KANS 扫描有异常(${DT})`, body });
+    await notify(config, { level: 'alert', title: `⚠️ ${BRAND} 扫描有异常(${DT})`, body });
   } else if (bailReason) {
     await notify(config, {
       level: 'info',
-      title: `⏹ KANS 本轮提前结束(${DT})`,
+      title: `⏹ ${BRAND} 本轮提前结束(${DT})`,
       body: `${bailReason}(跳过约 ${skipped} 个计划-口径)。已扫到的部分照常出表,剩下的下一轮补。`,
     });
   }
@@ -311,14 +310,14 @@ export async function runOnce(config, campaigns, deps) {
     const warnLine = failed.length ? `(注意:${failed.length} 个计划未成功扫描)\n` : '';
     const line = `✅ 本次(${DT})${calibers.join('/')}均无高成本低ROI素材`;
     info(line);
-    await notify(config, { level: 'info', title: 'KANS 预警扫描完成', body: warnLine + line });
+    await notify(config, { level: 'info', title: `${BRAND} 预警扫描完成`, body: warnLine + line });
     appendRunMeta({ DT, calibers, hits: 0, failed: failed.length, anomalies: anomalies.length });
     return { aborted: false, hits: 0, DT };
   }
 
   const partialNote = bailReason ? `⚠️ 注意:本轮提前结束,这是部分结果(跳过约 ${skipped} 个计划-口径)\n` : '';
   const body = partialNote + (driveNote ? driveNote + '\n' : '') + buildNotifyBody(rows, file);
-  await notify(config, { level: 'info', title: `🚨 KANS 高成本低ROI 命中(${DT})`, body });
+  await notify(config, { level: 'info', title: `🚨 ${BRAND} 高成本低ROI 命中(${DT})`, body });
 
   // ---- 红色预警:高耗+极低ROI,单独推手机 ----
   // 口径的真实日期范围 —— 卡片上要标出来,不然看不出是单日还是 7 天累计
@@ -356,7 +355,7 @@ export async function runOnce(config, campaigns, deps) {
       .join('\n');
     await notify(config, {
       level: 'alert',
-      title: `🔴 KANS 红色预警:${redHits.length} 条高耗低效素材(${DT})`,
+      title: `🔴 ${BRAND} 红色预警:${redHits.length} 条高耗低效素材(${DT})`,
       body: `条件:消耗 > ¥${R.costThresholdCNY} 且 ROI < ${R.roiThreshold}\n(计划 | 素材ID | 消耗 | ROI,按消耗排名)\n${rb}`,
       exclude: cardSent ? ['feishuApp'] : [], // 卡片已经推过群了,别再发一条纯文本
     });
@@ -371,7 +370,7 @@ function buildStatusText({ DT, calibers, runResults, hitCount, driveNote, anomal
   const uploadState =
     hitCount > 0 ? (driveNote.includes('已上传') ? '✅ 已上传' : '⚠️ ' + (driveNote || '未上传')) : '(无命中,不出表)';
   const lines = [
-    'KANS 高成本低ROI 预警 · 运行状态(心跳)',
+    `${BRAND} 高成本低ROI 预警 · 运行状态(心跳)`,
     `最近运行(越南时间):${DT}`,
     `口径:${calibers.join(' + ')}`,
     `命中:${hitCount} 条    上传 Google:${uploadState}`,

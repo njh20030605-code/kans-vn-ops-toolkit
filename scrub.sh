@@ -27,7 +27,7 @@ rm -rf "$R/feishu-api/intern-manual"
 sd 's/杨佳林(Jasper)/Jasper Yang/g; s/杨佳林/Jasper/g' "$R/feishu-api/bot.js"
 
 # 4. 飞书人 ID / 群 ID 清空（本机配置里有，公开副本不带）
-sd -E 's/"intern_open_id": "ou_[0-9a-f]+"/"intern_open_id": ""/' "$R/feishu-api/creative-exclusion/config.json"
+[ -f "$R/feishu-api/creative-exclusion/config.json" ] && sd -E 's/"intern_open_id": "ou_[0-9a-f]+"/"intern_open_id": ""/' "$R/feishu-api/creative-exclusion/config.json"
 sd -E "s/const OWNER_OPEN_ID = 'ou_[0-9a-f]+'/const OWNER_OPEN_ID = process.env.FEISHU_OWNER_OPEN_ID || ''/" "$R/feishu-api/bot.js"
 for c in roi-monitor roi-monitor-win; do
   sd -E 's/"chatId": "oc_[0-9a-f]+"/"chatId": ""/; s/"rootFolderId": "[A-Za-z0-9_-]+"/"rootFolderId": ""/' "$R/$c/config.json"
@@ -51,10 +51,18 @@ done
 (grep -rIl --exclude=scrub.sh --exclude-dir=.git -E 'oc_[0-9a-f]{20,}' "$R" || true) | while read -r f; do sd -E 's/oc_[0-9a-f]{20,}/oc_填你的飞书群ID/g' "$f"; done
 
 # 5. Google 表 ID（知道链接即可读的主播 GMV 表）→ 环境变量
-sd -E 's/^WORKBOOK_ID = "[A-Za-z0-9_-]+"/WORKBOOK_ID = os.environ.get("KANS_WORKBOOK_ID", "")  # 线上 Google 表 ID，本机通过环境变量或下面手填/' "$R/host-ranking/report_core.py"
+sd -E 's/"workbook_id": "[A-Za-z0-9_-]{20,}",/"workbook_id": "",/' "$R/host-ranking/report_core.py"
 
 # 6. 插件 README 的内部使用声明
 sd 's/ · 仅供内部使用，勿外传 \/ 勿用于盈利 · Beta 测试版//' "$R/vnd-cny-extension/README.md"
+
+# 8. 本机配置不进仓库，只留 *.example.json 模板
+rm -f "$R/feishu-api/settings.json" "$R/feishu-api/kans-board/config.json" "$R/feishu-api/intern-workflow/config.json"
+if [ -f "$R/feishu-api/creative-exclusion/config.json" ]; then
+  mv "$R/feishu-api/creative-exclusion/config.json" "$R/feishu-api/creative-exclusion/config.example.json"
+  sd -E 's/"app_token": "[A-Za-z0-9]+"/"app_token": "填多维表格appToken"/; s#"base_url": "https://[^"]+"#"base_url": "https://你的域名.feishu.cn/base/appToken"#; s/"table": "tbl[A-Za-z0-9]+"/"table": "tbl填表ID"/' "$R/feishu-api/creative-exclusion/config.example.json"
+fi
+rm -f "$R/host-ranking/config.json"
 
 # 7. 自检：不该出现的东西
 if grep -rIn -E 'Ryan|Pham|杨佳林|ou_[0-9a-f]{20,}|oc_[0-9a-f]{20,}|1u_5ZKG9|njh20030605@' "$R" --exclude-dir=.git --exclude=scrub.sh; then

@@ -63,6 +63,23 @@ BD 填投流码   ─▶ 「投放跟进工作台」◀── feishu-api/followu
 - 归因：TikTok 后台 7 天归因 vs TTMS O5A 30 天，两套口径不混用
 - 完整业务口径只放在本机 `kb/`（机器人回答时的权威事实来源）；公开仓库里的 [`feishu-api/kb/`](feishu-api/kb/) 只保留格式说明与示例
 
+## 10 分钟接入你自己的店铺
+
+所有业务参数都在配置文件里，代码不用改。每个目录都有 `*.example.json` 模板，复制成同名文件填上自己的值即可：
+
+| 步骤 | 做什么 | 文件 |
+|---|---|---|
+| 1 | 飞书开放平台建一个企业自建应用，开云文档 / 多维表格 / 消息权限，把 App Secret 存到本机 | `feishu-api/设置凭证.command` → `~/.feishu/credentials.json` |
+| 2 | 填租户域名、机器人只回应的人、默认输出文件夹、投放跟进台和素材排除表的表 ID | `feishu-api/settings.example.json` → `settings.json` |
+| 3 | 素材排除表：店铺列表 + 广告计划→店铺映射；用 `rebuild.js` 一键建表 | `feishu-api/creative-exclusion/config.example.json` → `config.json` |
+| 4 | 低效素材看板：预警程序写入的表 ID | `feishu-api/kans-board/config.example.json` → `config.json` |
+| 5 | 实习生日清：实习生名单、店铺、表 ID；用 `create-base.js` 一键建表 | `feishu-api/intern-workflow/config.example.json` → `config.json` |
+| 6 | ROI 预警：阈值、汇率、品牌名（通知标题）、通知通道；监控哪些推广系列 | `roi-monitor/config.json` · `campaigns.example.json` → `campaigns.json` · `.env.example` → `.env` |
+| 7 | 主播排名：Google 表 ID、直播间 tab 关键词、汇率、列索引 | `host-ranking/config.example.json` → `config.json` |
+| 8 | 汇率插件：无需配置，加载即用 | — |
+
+跟 KANS 强相关、别人用不上的东西（业务口径知识库正文、培训手册、真实计划 ID）不在仓库里。
+
 ## 环境
 
 - Node.js ≥ 18（feishu-api、roi-monitor）
@@ -72,6 +89,13 @@ BD 填投流码   ─▶ 「投放跟进工作台」◀── feishu-api/followu
 ## 同步
 
 源码平时在桌面各目录里改，改完运行仓库根目录的 `sync-from-desktop.sh` 会把最新源码拷进来（自动排除 node_modules / 日志 / 数据 / 凭证），再 `git add -A && git commit && git push` 即可。
+
+## 联系
+
+同行交流、接入问题、想一起把 TikTok Shop 运营自动化做下去：
+
+- 微信：**Anyway77777777**
+- GitHub：[@njh20030605-code](https://github.com/njh20030605-code)
 
 ## 许可
 

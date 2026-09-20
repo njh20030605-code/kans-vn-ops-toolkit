@@ -24,8 +24,9 @@ const path = require('path');
 const { spawn } = require('child_process');
 const lark = require('@larksuiteoapi/node-sdk');
 
-const FOLLOWUP_APP = 'DYfDb1Q7Ea01v7sfeeEcDJwEn4b';   // 投放跟进工作台所在多维表格
-const CREATIVE_APP = 'XijobxWUVaaWbtsAJ6ocbg1Kn2g'; // 素材排除表
+const SETTINGS = require('./settings');
+const FOLLOWUP_APP = SETTINGS.followup.app_token;      // 投放跟进工作台所在多维表格
+const CREATIVE_APP = SETTINGS.creative_exclusion_app;  // 素材排除表
 const creativeTimer = { v: null };
 const followupTimer = { v: null };
 const { readLinks } = require('./docread');
@@ -33,8 +34,8 @@ const { runActions } = require('./docwrite');
 
 // ═══════════════ 配置 ═══════════════
 
-const OWNER_OPEN_ID = process.env.FEISHU_OWNER_OPEN_ID || ''; // Jasper Yang
-const OWNER_NAME = 'Jasper Yang';
+const OWNER_OPEN_ID = process.env.FEISHU_OWNER_OPEN_ID || SETTINGS.owner.open_id; // 只回应这个人
+const OWNER_NAME = SETTINGS.owner.name;
 
 function conf(envName, fileName) {
   if (process.env[envName]) return process.env[envName].trim();

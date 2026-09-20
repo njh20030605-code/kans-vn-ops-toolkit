@@ -56,8 +56,11 @@ launchctl kickstart -k gui/$(id -u)/com.jasper.feishu-myclaude
 ```bash
 npm install
 # 双击 设置凭证.command，粘贴飞书应用 App Secret → 写入 ~/.feishu/credentials.json
+cp settings.example.json settings.json        # 租户域名 / 负责人 open_id / 输出文件夹 / 表 ID
 node feishu.js selftest
 ```
+
+各常驻任务的表 ID 与业务参数都在各自目录的 `config.json`（模板 `config.example.json`）：`creative-exclusion/`（店铺与计划映射）、`kans-board/`（看板表）、`intern-workflow/`（实习生名单与表）。`settings.js` 是统一读取入口，`bot.js`、`followup-sync.js`、`docwrite.js`、`mdwrite.js` 都从它拿配置。
 
 读不到某份文档时不是权限问题（应用侧权限全开），是那份文档没把应用加成协作者：在文档右上角「分享」里搜 `My Claude` 加为可编辑。
 
@@ -65,6 +68,7 @@ node feishu.js selftest
 
 ```
 feishu.js            命令行入口 / token / 各 API 封装
+settings.js          统一业务配置读取（settings.json，模板 settings.example.json）
 bot.js               飞书机器人
 docread.js  docwrite.js  mdwrite.js   机器人的读写云文档助手
 followup-sync.js     投放跟进同步

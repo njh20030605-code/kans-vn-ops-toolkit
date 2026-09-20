@@ -58,6 +58,21 @@ BD fills ad codes     ─▶ "Ad follow-up workbench" ◀── feishu-api/follo
 - Attribution: TikTok 7-day vs TTMS O5A 30-day are never mixed
 - The full definitions live only in the local `kb/` folder (the bot's single source of truth); the public [`feishu-api/kb/`](feishu-api/kb/) keeps the format guide and an example
 
+## Adopt it for your own shop in 10 minutes
+
+Every business parameter lives in a config file; no code changes needed. Each directory ships a `*.example.json` — copy it, drop the `.example`, fill in your values:
+
+| Step | What | File |
+|---|---|---|
+| 1 | Create a Feishu custom app with cloud-doc / Bitable / message scopes; store its App Secret locally | `feishu-api/设置凭证.command` → `~/.feishu/credentials.json` |
+| 2 | Tenant domain, the one user the bot answers, default output folder, Bitable IDs of the follow-up workbench and creative-exclusion table | `feishu-api/settings.example.json` → `settings.json` |
+| 3 | Creative exclusion: shop list + campaign→shop map; `rebuild.js` creates the table for you | `feishu-api/creative-exclusion/config.example.json` → `config.json` |
+| 4 | Low-ROI dashboard: the Bitable the monitor writes into | `feishu-api/kans-board/config.example.json` → `config.json` |
+| 5 | Intern daily board: intern list, shops, table IDs; `create-base.js` builds it | `feishu-api/intern-workflow/config.example.json` → `config.json` |
+| 6 | ROI monitor: thresholds, FX rate, brand name for notification titles, channels; which campaigns to watch | `roi-monitor/config.json` · `campaigns.example.json` → `campaigns.json` · `.env.example` → `.env` |
+| 7 | Host ranking: Google Sheet ID, room tab keywords, FX rate, column indexes | `host-ranking/config.example.json` → `config.json` |
+| 8 | FX extension: nothing to configure | — |
+
 ## Quick start
 
 ```bash
@@ -76,6 +91,13 @@ Windows EXE for `host-ranking` is built by GitHub Actions (`.github/workflows/bu
 ## Keeping the repo in sync
 
 Sources are edited in their Desktop folders. Run `sync-from-desktop.sh` to pull the latest code in (dependencies, logs, data and credentials are excluded), then commit and push.
+
+## Contact
+
+Questions, adoption help, or you also automate TikTok Shop ops:
+
+- WeChat: **Anyway77777777**
+- GitHub: [@njh20030605-code](https://github.com/njh20030605-code)
 
 ## License
 

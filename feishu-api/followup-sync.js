@@ -23,8 +23,9 @@ const os = require('os');
 const path = require('path');
 
 const BASE = 'https://open.feishu.cn';
-const APP = 'DYfDb1Q7Ea01v7sfeeEcDJwEn4b';
-const WB = 'tbldCm2y3S8ZZNhk';           // 投放跟进工作台（Jasper）
+const SETTINGS = require('./settings');
+const APP = SETTINGS.followup.app_token;
+const WB = SETTINGS.followup.workbench_table;   // 投放跟进工作台
 
 // 源表字段名（8 张表结构一致）
 const SF = {

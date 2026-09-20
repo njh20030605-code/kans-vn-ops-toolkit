@@ -18,12 +18,14 @@ const fs = require('fs');
 const path = require('path');
 const { api, listAll, batchCreate, batchDelete, txt, num } = require('./fslib.js');
 
-const APP = 'AMD3bW73qanEQmsg7mCcfFB6nTd';
-const T_HIT = 'tblT9nDZFnVa90qO';
-const T_DAY = 'tblhTnhAwHQVB8ad';
+// 表 ID 在 config.json（本机）/ config.example.json（模板）
+const CFG = JSON.parse(fs.readFileSync(path.join(__dirname, fs.existsSync(path.join(__dirname, 'config.json')) ? 'config.json' : 'config.example.json'), 'utf8'));
+const APP = CFG.app_token;
+const T_HIT = CFG.hit_table;
+const T_DAY = CFG.daily_table;
 const BOARDS = {
-  '当天':  { table: 'tblfk2fh6kGSrkGL', withPlanTotal: true },
-  '近7天': { table: 'tblX8gL4MsUu7XP6', withPlanTotal: false },
+  '当天':  { table: CFG.board_today, withPlanTotal: true },
+  '近7天': { table: CFG.board_7d, withPlanTotal: false },
 };
 const STATE = path.join(__dirname, '.state.json');
 const MAX_IDS = 400;          // TikTok「作品ID 包含任一项」单次上限

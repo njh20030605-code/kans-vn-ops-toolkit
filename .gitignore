@@ -30,3 +30,10 @@ notified.json
 ._*
 *.bak*
 *.swp
+
+# 本机业务配置（用 *.example.json 模板）
+feishu-api/settings.json
+feishu-api/kans-board/config.json
+feishu-api/intern-workflow/config.json
+feishu-api/creative-exclusion/config.json
+host-ranking/config.json

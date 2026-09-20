@@ -1,4 +1,5 @@
 {
+  "brand": "KANS",
   "costThresholdCNY": 70,
   "roiThreshold": 2,
   "vndToCnyRate": 3891,

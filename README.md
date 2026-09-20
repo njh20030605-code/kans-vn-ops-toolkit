@@ -11,13 +11,13 @@
 ![Playwright](https://img.shields.io/badge/Playwright-%E5%8F%AA%E8%AF%BB%E6%89%AB%E6%8F%8F-2EAD33?logo=playwright&logoColor=white)
 ![Feishu](https://img.shields.io/badge/%E9%A3%9E%E4%B9%A6-%E5%BC%80%E6%94%BE%E5%B9%B3%E5%8F%B0-3370FF)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Chrome-lightgrey)
-![License](https://img.shields.io/badge/license-private-red)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 </div>
 围绕 **KANS（韩束）越南 TikTok Shop** 日常运营写的一组自动化工具。主 KPI 是本土店「直播间 GMV + 商品卡 GMV」，
 这里的每个工具都为了把围绕这条 KPI 的重复劳动（导数、盯盘、登记、汇总、发群）交给程序。
 
-> 仓库为私有。所有凭证（飞书 App Secret、TikTok 登录态、.env）都**不在**仓库里，见各子项目「首次准备」。
+> 所有凭证（飞书 App Secret、TikTok 登录态、.env）、业务口径正文、广告计划 ID、同事信息都**不在**仓库里；`sync-from-desktop.sh` 同步时会自动跑 `scrub.sh` 脱敏。见各子项目「首次准备」。
 
 ## 给谁用 · 按角色找工具
 
@@ -28,7 +28,7 @@
 | **达人 BD / 投流码对接** | [`feishu-api/followup-sync.js`](feishu-api/followup-sync.js) · [`feishu-api/投放跟进同步-说明.md`](feishu-api/投放跟进同步-说明.md) | 填了投流码但没人跟的记录自动进工作台，退回原因自动写回你的表 |
 | **直播运营 / 主播管理** | [`host-ranking/`](host-ranking/) | 每天一键出中英越三语主播 GMV 日排名 + 月排名 Excel，直接发群 |
 | **所有要看越南后台的人** | [`vnd-cny-extension/`](vnd-cny-extension/) | TikTok / Shopee 后台的越南盾自动换算成人民币显示 |
-| **负责人 / 要问数据口径的人** | [`feishu-api/bot.js`](feishu-api/bot.js) · [`feishu-api/kb/`](feishu-api/kb/) | 飞书里 @My Claude 直接问，答案只来自 kb 里的权威口径 |
+| **负责人 / 要问数据口径的人** | [`feishu-api/bot.js`](feishu-api/bot.js) · [`feishu-api/kb/`](feishu-api/kb/) | 飞书里 @My Claude 直接问，答案只来自本机 kb 里的权威口径 |
 | **要接手维护的技术同学** | 各子目录 README 的「首次准备」+ 根目录 `sync-from-desktop.sh` | 凭证怎么配、launchd 怎么装、源码怎么同步 |
 
 关键词：TikTok Shop 越南 · GMV Max · 素材预警 · ROI · 飞书开放平台 · 多维表格 · Playwright · 主播排名 · VND CNY 汇率插件
@@ -60,7 +60,7 @@ BD 填投流码   ─▶ 「投放跟进工作台」◀── feishu-api/followu
 - 汇率：₫3,860 ≈ ¥1；USD × 6.8 = RMB
 - 低效素材：当天归一化成本 ≥ ¥70 且 ROI < 2；红色预警：成本 ≥ ¥200 且 ROI < 1
 - 归因：TikTok 后台 7 天归因 vs TTMS O5A 30 天，两套口径不混用
-- 更多业务口径见 [`feishu-api/kb/`](feishu-api/kb/)（机器人回答时的权威事实来源）
+- 完整业务口径只放在本机 `kb/`（机器人回答时的权威事实来源）；公开仓库里的 [`feishu-api/kb/`](feishu-api/kb/) 只保留格式说明与示例
 
 ## 环境
 
@@ -71,3 +71,7 @@ BD 填投流码   ─▶ 「投放跟进工作台」◀── feishu-api/followu
 ## 同步
 
 源码平时在桌面各目录里改，改完运行仓库根目录的 `sync-from-desktop.sh` 会把最新源码拷进来（自动排除 node_modules / 日志 / 数据 / 凭证），再 `git add -A && git commit && git push` 即可。
+
+## 许可
+
+MIT，见 [LICENSE](LICENSE)。

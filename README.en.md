@@ -11,11 +11,11 @@
 ![Playwright](https://img.shields.io/badge/Playwright-read--only%20scraping-2EAD33?logo=playwright&logoColor=white)
 ![Feishu / Lark](https://img.shields.io/badge/Feishu-Open%20Platform-3370FF)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Chrome-lightgrey)
-![License](https://img.shields.io/badge/license-private-red)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 </div>
 
-> Private repository. No credentials (Feishu App Secret, TikTok session, `.env`) are stored here — see each sub-project's *First-time setup*. Sub-project docs are written in Chinese; this page is the English entry point.
+> No credentials (Feishu App Secret, TikTok session, `.env`), internal metric documents, campaign IDs or colleague details are stored here — `sync-from-desktop.sh` runs `scrub.sh` on every sync. See each sub-project's *First-time setup*. Sub-project docs are in Chinese; this page is the English entry point.
 
 ## Who is this for
 
@@ -56,7 +56,7 @@ BD fills ad codes     ─▶ "Ad follow-up workbench" ◀── feishu-api/follo
 - FX: ₫3,860 ≈ ¥1; USD × 6.8 = RMB
 - Low-ROI creative: same-day normalised cost ≥ ¥70 and ROI < 2; red alert: cost ≥ ¥200 and ROI < 1
 - Attribution: TikTok 7-day vs TTMS O5A 30-day are never mixed
-- More definitions live in [`feishu-api/kb/`](feishu-api/kb/), the bot's single source of truth
+- The full definitions live only in the local `kb/` folder (the bot's single source of truth); the public [`feishu-api/kb/`](feishu-api/kb/) keeps the format guide and an example
 
 ## Quick start
 
@@ -76,3 +76,7 @@ Windows EXE for `host-ranking` is built by GitHub Actions (`.github/workflows/bu
 ## Keeping the repo in sync
 
 Sources are edited in their Desktop folders. Run `sync-from-desktop.sh` to pull the latest code in (dependencies, logs, data and credentials are excluded), then commit and push.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

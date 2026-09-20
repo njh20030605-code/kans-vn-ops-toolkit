@@ -48,7 +48,6 @@ launchctl kickstart -k gui/$(id -u)/com.jasper.feishu-myclaude
 | `followup-sync.js` | 投放跟进工作台双向同步：源表「有投流码且无投放跟进人」进工作台，退回备注以【投放退回】块追加写回，去重靠 record_id | 30 s | `com.jasper.followup-sync` |
 | [`intern-workflow/`](intern-workflow/) | 广告实习生每日工作流多维表格：建表、每天 00:10 清零并归档打卡历史、重灌任务 | 每日 | `com.jasper.intern-workflow` |
 | [`kans-board/`](kans-board/) | 低效素材看板：把预警程序的命中流水按「每素材当天最后一次扫描」去重，汇总成计划维度当天 / 近 7 天两张表 | 15 min | `com.jasper.kans-board` |
-| [`intern-manual/`](intern-manual/) | 广告实习生培训手册（v3.1）生成与就地补丁脚本，产物是飞书文档 | 手动 | — |
 
 各任务详细口径见目录内 README / 说明文件：[`投放跟进同步-说明.md`](投放跟进同步-说明.md)、[`creative-exclusion/README.md`](creative-exclusion/README.md)、[`kans-board/README.md`](kans-board/README.md)。
 
@@ -71,8 +70,7 @@ docread.js  docwrite.js  mdwrite.js   机器人的读写云文档助手
 followup-sync.js     投放跟进同步
 creative-exclusion/  素材排除表机器人（sync.js 常驻，rebuild.js 重建表，manual.js 生成培训手册）
 intern-workflow/     实习生日清表
-intern-manual/       实习生培训手册生成脚本
 kans-board/          低效素材看板
-kb/                  机器人知识库（业务口径、KPI、禁区）
+kb/                  机器人知识库（公开仓库只含说明与示例，正文在本机）
 *.command            双击脚本：启动机器人 / 设置凭证 / 登录 Claude / 抓报错
 ```

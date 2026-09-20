@@ -1,6 +1,6 @@
 # TikTok / Shopee 越南后台 VND→人民币 实时汇率换算插件
 
-> 作者：**Jasper Yang** · 仅供内部使用，勿外传 / 勿用于盈利 · Beta 测试版
+> 作者：**Jasper Yang**
 
 把 TikTok 和 Shopee 越南后台里显示的越南盾（VND）金额，按**实时汇率**自动替换成人民币（¥）。
 

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "示例-商品广告-1",
+    "campaign_id": "填 TikTok 后台的推广系列ID",
+    "product_id": "填商品ID"
+  },
+  {
+    "name": "示例-商品广告-2",
+    "campaign_id": "填 TikTok 后台的推广系列ID",
+    "product_id": "填商品ID"
+  },
+  {
+    "name": "示例-商品广告-3",
+    "campaign_id": "填 TikTok 后台的推广系列ID",
+    "product_id": "填商品ID"
+  }
+]

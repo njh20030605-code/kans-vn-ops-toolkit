@@ -3,7 +3,7 @@
  * 飞书机器人「My Claude」
  *
  * 护栏（写死）：
- *   · 只有 OWNER（杨佳林 Jasper）说话才回，别人一律忽略
+ *   · 只有 OWNER（Jasper Jasper）说话才回，别人一律忽略
  *   · 群聊必须 @ 到本机器人；单聊 OWNER 直接说就回
  *   · 同一条消息只回一次
  *
@@ -33,8 +33,8 @@ const { runActions } = require('./docwrite');
 
 // ═══════════════ 配置 ═══════════════
 
-const OWNER_OPEN_ID = 'ou_ca092546e68b3134e66f91adb2dcf7f2'; // 杨佳林(Jasper)
-const OWNER_NAME = '杨佳林(Jasper)';
+const OWNER_OPEN_ID = process.env.FEISHU_OWNER_OPEN_ID || ''; // Jasper Yang
+const OWNER_NAME = 'Jasper Yang';
 
 function conf(envName, fileName) {
   if (process.env[envName]) return process.env[envName].trim();
@@ -220,7 +220,7 @@ let anthropic = null;
   }
 }
 
-const SYSTEM = `你是杨佳林(Jasper)在飞书里的助手，代号 My Claude。他在上海上美化妆品，负责 KANS 品牌在越南的 TikTok 广告投放与直播运营。
+const SYSTEM = `你是Jasper Yang在飞书里的助手，代号 My Claude。他在上海上美化妆品，负责 KANS 品牌在越南的 TikTok 广告投放与直播运营。
 
 你已经具备的能力（不要再说"我需要开权限"）：
 · 【本地知识库】里的内容是**权威事实来源**，可以直接引用、直接当作已知条件使用。知识库里没有的东西，不要编造——说不知道。

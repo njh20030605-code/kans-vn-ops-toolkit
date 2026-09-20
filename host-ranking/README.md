@@ -23,6 +23,7 @@
 
 ```bash
 pip install -r requirements.txt
+export KANS_WORKBOOK_ID=<线上 Google 表的 ID>   # 或直接改 report_core.py 顶部的 WORKBOOK_ID
 python3 main_app.py
 ```
 

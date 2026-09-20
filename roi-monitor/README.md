@@ -15,6 +15,8 @@
 ```bash
 cd ~/Desktop/kans-roi-monitor
 npm install                       # 装依赖(已装过可跳过)
+cp campaigns.example.json campaigns.json   # 填入要监控的推广系列 ID / 商品 ID
+cp .env.example .env              # 按需填通知通道的 key
 npx playwright install chromium   # 装浏览器内核(已装过可跳过)
 ```
 
@@ -55,7 +57,7 @@ npx playwright install chromium   # 装浏览器内核(已装过可跳过)
 ### 授权失效了怎么办(重新授权)
 如果某轮上传报「授权失效」告警,在项目目录跑一次重新授权即可:
 ```bash
-rclone authorize "drive"     # 浏览器弹出→用 njh20030605@gmail.com 登录→允许
+rclone authorize "drive"     # 浏览器弹出→用 <你的 Google 账号邮箱> 登录→允许
 ```
 把终端里 `--->` 和 `<---` 之间那段 token 交给维护者更新,或直接:
 ```bash

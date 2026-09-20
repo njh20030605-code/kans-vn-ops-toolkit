@@ -13,3 +13,4 @@ RS "$P/kans-roi-monitor-win/" "$R/roi-monitor-win/"
 RS --exclude '*.exe' --exclude .github --exclude dist --exclude build --exclude '*.spec' "$P/KANS主播排名报表/主播排名项目/KANS主播排名程序/" "$R/host-ranking/"
 RS "$P/【最终版】TikTok-Shopee-VND-CNY-插件-v10/" "$R/vnd-cny-extension/"
 cd "$R" && git status --short
+bash "$R/scrub.sh"

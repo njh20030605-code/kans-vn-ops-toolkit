@@ -23,7 +23,7 @@ from openpyxl.utils import get_column_letter
 # ============================================================
 # ★★★ 配置区（要改的都在这里） ★★★
 # ============================================================
-WORKBOOK_ID = "1u_5ZKG9NSS6-VSLY07GgLWal_aeuNAA8prnla3unfEM"
+WORKBOOK_ID = os.environ.get("KANS_WORKBOOK_ID", "")  # 线上 Google 表 ID，本机通过环境变量或下面手填
 
 # 要合并统计的直播间：tab 名里含这些关键词之一就纳入（不区分大小写）。
 # 现在两个直播间 tab 名是 "Tháng 07| SKINCARE" 和 "Tháng 07| OFFICIAL + KHTH"。

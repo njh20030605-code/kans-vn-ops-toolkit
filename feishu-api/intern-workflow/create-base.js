@@ -1,4 +1,4 @@
-// 一次性：创建「广告实习生每日工作流」多维表格（Ryan / Pham 各一张 + 打卡历史）
+// 一次性：创建「广告实习生每日工作流」多维表格（InternA / InternB 各一张 + 打卡历史）
 const { api } = require('/Users/Zhuanz1/Desktop/feishu-api/creative-exclusion/lib.js');
 const fs = require('fs');
 const T = require('./tasks.js');
@@ -71,7 +71,7 @@ function historyFields() {
         '店铺 Shop': t.shop === '__MY__' ? it.shops : [t.shop],
         '权限 Permission': t.perm,
         '怎么做 How': t.how,
-        '登记到哪 Output': t.out.replace('Ryan 工作群', it.group),
+        '登记到哪 Output': t.out.replace('InternA 工作群', it.group),
         '手册章节 Manual §': t.sec,
         '来源 Source': t.src,
         '序号 #': t.n,

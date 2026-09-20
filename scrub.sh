@@ -46,9 +46,9 @@ os.remove(os.path.join(d,'campaigns.json'))
 PY
   fi
 done
-grep -rIl --exclude=scrub.sh 'njh20030605@gmail.com' "$R" | while read -r f; do sd 's/njh20030605@gmail.com/<你的 Google 账号邮箱>/g' "$f"; done
+(grep -rIl --exclude=scrub.sh 'njh20030605@gmail.com' "$R" || true) | while read -r f; do sd 's/njh20030605@gmail.com/<你的 Google 账号邮箱>/g' "$f"; done
 # 代码里的默认群 ID / 文档里的示例群 ID 也清掉
-grep -rIl --exclude=scrub.sh --exclude-dir=.git -E 'oc_[0-9a-f]{20,}' "$R" | while read -r f; do sd -E 's/oc_[0-9a-f]{20,}/oc_填你的飞书群ID/g' "$f"; done
+(grep -rIl --exclude=scrub.sh --exclude-dir=.git -E 'oc_[0-9a-f]{20,}' "$R" || true) | while read -r f; do sd -E 's/oc_[0-9a-f]{20,}/oc_填你的飞书群ID/g' "$f"; done
 
 # 5. Google 表 ID（知道链接即可读的主播 GMV 表）→ 环境变量
 sd -E 's/^WORKBOOK_ID = "[A-Za-z0-9_-]+"/WORKBOOK_ID = os.environ.get("KANS_WORKBOOK_ID", "")  # 线上 Google 表 ID，本机通过环境变量或下面手填/' "$R/host-ranking/report_core.py"

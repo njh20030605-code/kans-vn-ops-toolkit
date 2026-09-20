@@ -1,0 +1,16 @@
+{
+  "name": "feishu-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "feishu.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
+    "@larksuiteoapi/node-sdk": "^1.73.0"
+  }
+}

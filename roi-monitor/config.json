@@ -1,0 +1,96 @@
+{
+  "costThresholdCNY": 70,
+  "roiThreshold": 2,
+  "vndToCnyRate": 3891,
+  "timezoneOffsetHours": 7,
+  "sevenDayHours": [
+    10,
+    14
+  ],
+  "browser": {
+    "headless": false,
+    "userDataDir": "./data/tiktok-profile",
+    "channel": "chromium",
+    "slowMoMs": 0,
+    "navTimeoutMs": 45000,
+    "firstWaitMs": 2500,
+    "minRandomDelayMs": 800,
+    "maxRandomDelayMs": 2200,
+    "waitUntil": "commit",
+    "gotoRetries": 3,
+    "tableTimeoutMs": 60000,
+    "blockHeavyResources": true
+  },
+  "output": {
+    "mode": "local",
+    "dir": "./output",
+    "format": "xlsx",
+    "gdrive": {
+      "enabled": true,
+      "remote": "gdrive",
+      "rootFolderId": "1sgOkmmUSLnjCOmk2WKuuXzGnAh7E5v_e"
+    }
+  },
+  "llm": {
+    "enabled": false,
+    "baseUrl": "https://api.openai.com/v1",
+    "apiKey": "${LLM_API_KEY}",
+    "model": "gpt-4o-mini",
+    "timeoutMs": 30000,
+    "maxCallsPerRun": 10
+  },
+  "notify": {
+    "channels": [
+      "log",
+      "file"
+    ],
+    "alertChannels": [
+      "log",
+      "file",
+      "serverchan"
+    ],
+    "redAlert": {
+      "costThresholdCNY": 200,
+      "roiThreshold": 1
+    },
+    "serverchanKey": "${SERVERCHAN_KEY}",
+    "wecomWebhook": "${WECOM_WEBHOOK}",
+    "wecomApp": {
+      "corpid": "${WECOM_CORPID}",
+      "corpsecret": "${WECOM_SECRET}",
+      "agentid": "${WECOM_AGENTID}",
+      "touser": "@all"
+    },
+    "feishuWebhook": "${FEISHU_WEBHOOK}",
+    "telegram": {
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "chatId": "${TELEGRAM_CHAT_ID}"
+    }
+  },
+  "feishu": {
+    "enabled": false,
+    "appId": "",
+    "appSecret": "",
+    "chatId": "oc_6da33b15f6dee3720d2e3349a5c00216",
+    "chatName": "越南韩束ROI预警",
+    "bitable": {
+      "appToken": "AMD3bW73qanEQmsg7mCcfFB6nTd",
+      "tableId": "tblT9nDZFnVa90qO",
+      "dailyTableId": "tblhTnhAwHQVB8ad"
+    },
+    "dailySummaryHour": 9
+  },
+  "autoDiscoverCampaigns": false,
+  "stability": {
+    "roundTimeoutMinutes": 40,
+    "roundSoftBudgetMinutes": 25,
+    "abortAfterFailedCampaigns": 4,
+    "loginProbeCampaigns": 3,
+    "retryDelayMinutes": 6,
+    "maxRetriesPerHour": 2,
+    "alertAfterConsecutiveFailures": 2,
+    "alertRepeatEveryFailures": 6,
+    "restartBrowserEveryRounds": 12,
+    "maxBrowserRestartsPerRound": 1
+  }
+}

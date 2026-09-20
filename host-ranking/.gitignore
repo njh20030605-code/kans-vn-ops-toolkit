@@ -1,0 +1,10 @@
+# 打包中间产物 / 输出，不上传
+dist/
+build/
+*.spec
+__pycache__/
+*.pyc
+.DS_Store
+输出报表/
+KANS主播排名报表/
+*.app

@@ -1,0 +1,26 @@
+{
+  "name": "kans-roi-monitor",
+  "version": "1.0.0",
+  "description": "KANS 越南 GMV Max 高成本低ROI素材预警 —— 独立无人值守扫描程序 (只读)",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "kans-roi": "src/index.js"
+  },
+  "scripts": {
+    "login": "node src/index.js login",
+    "scan": "node src/index.js scan",
+    "scan:7d": "node src/index.js scan --with-7d",
+    "start": "node src/index.js start",
+    "status": "node src/index.js status",
+    "selftest": "node src/index.js selftest"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "node-cron": "^3.0.3",
+    "playwright": "^1.47.0"
+  }
+}

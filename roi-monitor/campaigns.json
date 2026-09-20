@@ -1,0 +1,10 @@
+[
+  { "name": "MKT-白精华-0708",        "campaign_id": "1870076773155954", "product_id": "1731561143212017689" },
+  { "name": "MKT-素颜霜-0708",        "campaign_id": "1870076773163362", "product_id": "1731728613455398937" },
+  { "name": "MKT-红精华-0708",        "campaign_id": "1870076725074050", "product_id": "1731559750857099289" },
+  { "name": "OL-白精华single-0715",   "campaign_id": "1870746187130001", "product_id": "1734336273358619673" },
+  { "name": "MKT-红洁面-0708",        "campaign_id": "1870076773167218", "product_id": "1731558826539714585" },
+  { "name": "OL-红精华single-0722",   "campaign_id": "1871417792152593", "product_id": "1734336201423553561" },
+  { "name": "KANS SKINCARE VIETNAM 0708(直播)", "campaign_id": "1870075962758033", "type": "live" },
+  { "name": "KANS khoa học trẻ hóa 0708(直播)", "campaign_id": "1870073987680466", "type": "live" }
+]

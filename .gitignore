@@ -1,0 +1,32 @@
+# 依赖
+node_modules/
+__pycache__/
+*.pyc
+
+# 凭证 / 登录态（永远不进仓库）
+.env
+.env.*
+!.env.example
+credentials.json
+user-data/
+browser-profile/
+
+# 运行产物
+logs/
+*.log
+data/
+output/
+dist/
+build/
+*.spec
+.state.json
+notified.json
+*.xlsx
+*.exe
+*.app
+
+# 系统 / 编辑器
+.DS_Store
+._*
+*.bak*
+*.swp

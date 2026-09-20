@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "TikTok 越南后台 VND→人民币 实时汇率换算",
+  "version": "1.5.0",
+  "description": "把 TikTok / Shopee 越南后台里的 VND 金额，按实时汇率自动替换成人民币（¥）。作者：Jasper Yang，仅供内部使用。Beta 测试版。KANS 越南团队，一切顺利，天天爆单！",
+  "author": "Jasper Yang",
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://*.tiktok.com/*",
+    "https://*.tiktokglobalshop.com/*",
+    "https://*.tiktokshopglobalselling.com/*",
+    "https://*.shopee.vn/*",
+    "https://open.er-api.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.tiktok.com/*", "https://*.tiktokglobalshop.com/*", "https://*.tiktokshopglobalselling.com/*", "https://*.shopee.vn/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "VND→人民币 换算 · Beta（作者 Jasper Yang，仅供内部使用）",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  }
+}

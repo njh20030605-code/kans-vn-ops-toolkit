@@ -1,0 +1,31 @@
+name: Build host-ranking Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['host-ranking/**']
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: host-ranking
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install openpyxl pyinstaller
+      - name: Build EXE
+        run: >
+          pyinstaller --noconfirm --windowed --clean --onefile
+          --name "KANS-Host-Ranking"
+          --collect-submodules openpyxl
+          main_app.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KANS-Host-Ranking-windows
+          path: host-ranking/dist/KANS-Host-Ranking.exe

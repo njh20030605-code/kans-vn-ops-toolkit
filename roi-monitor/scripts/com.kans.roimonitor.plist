@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.kans.roimonitor</string>
+
+  <!-- 用绝对路径。node 路径按 `which node` 的结果填。 -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>/Users/Zhuanz1/Desktop/kans-roi-monitor/src/index.js</string>
+    <string>start</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/Zhuanz1/Desktop/kans-roi-monitor</string>
+
+  <!-- 崩溃/退出后自动拉起,实现 7×24 -->
+  <key>KeepAlive</key>
+  <true/>
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/Zhuanz1/Desktop/kans-roi-monitor/logs/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/Zhuanz1/Desktop/kans-roi-monitor/logs/launchd.err.log</string>
+</dict>
+</plist>

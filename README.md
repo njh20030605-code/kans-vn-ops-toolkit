@@ -14,6 +14,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 </div>
+
 围绕 **KANS（韩束）越南 TikTok Shop** 日常运营写的一组自动化工具。主 KPI 是本土店「直播间 GMV + 商品卡 GMV」，
 这里的每个工具都为了把围绕这条 KPI 的重复劳动（导数、盯盘、登记、汇总、发群）交给程序。
 

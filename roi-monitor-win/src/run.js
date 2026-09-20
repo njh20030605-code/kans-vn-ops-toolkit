@@ -5,7 +5,7 @@ import {
   buildDashboardUrl,
   info,
   warn,
-  error, BRAND } from './util.js';
+  error, BRAND, MARKET, marketOf } from './util.js';
 import { getPage, gotoAndWaitTable, isPageResponsive, setLiveInterception } from './browser.js';
 import { classifyPageState } from './classify.js';
 import { scanCampaign } from './scan.js';
@@ -25,8 +25,9 @@ export async function runOnce(config, campaigns, deps) {
   const context = deps.context || (deps.getContext && deps.getContext());
   if (llm) llm.resetRun();
 
-  const DT = formatDT(config.timezoneOffsetHours);
-  const ranges = vnDayRanges(config.timezoneOffsetHours);
+  const tz = marketOf(config).tzOffsetHours;
+  const DT = formatDT(tz);
+  const ranges = vnDayRanges(tz);
   const calibers = with7d ? ['当天', '近7天'] : ['当天'];
   info(`===== 本轮 ${DT} 开始,口径:${calibers.join(' / ')} =====`);
 
@@ -71,7 +72,7 @@ export async function runOnce(config, campaigns, deps) {
 
   // 先确认登录态:逐个计划探路,直到有一个能打开。
   // (以前固定拿第 1 个计划当探针 —— 它偶发打不开就整轮放弃,等于把 8 个计划绑死在一个单点上)
-  const todayStr = vnDateStr(ranges.todayStart, config.timezoneOffsetHours);
+  const todayStr = vnDateStr(ranges.todayStart, marketOf(config).tzOffsetHours);
   const probeCount = Math.min(campaigns.length, config.stability?.loginProbeCampaigns ?? 3);
   const probeLive = (pc) => (pc.type === 'live' ? { start: todayStr, end: todayStr } : null);
   let first = { ok: false, reason: 'nav', error: '未尝试' };
@@ -148,7 +149,7 @@ export async function runOnce(config, campaigns, deps) {
   const runResults = []; // {caliber, campaign, loaded, hits, error}
   const anomalies = [];
   let failStreak = 0; // 连续失败的计划数,用来判断"是不是浏览器整个卡了"
-  const off = config.timezoneOffsetHours;
+  const off = tz;
 
   // 软预算:网络差的时候,16 次导航 × 每次最多重试 3 遍,理论上能跑到 90 分钟,
   // 会被调度器的看门狗硬砍掉、什么都拿不到。所以这里自己先收工,保住已扫到的部分。
@@ -371,7 +372,7 @@ function buildStatusText({ DT, calibers, runResults, hitCount, driveNote, anomal
     hitCount > 0 ? (driveNote.includes('已上传') ? '✅ 已上传' : '⚠️ ' + (driveNote || '未上传')) : '(无命中,不出表)';
   const lines = [
     `${BRAND} 高成本低ROI 预警 · 运行状态(心跳)`,
-    `最近运行(越南时间):${DT}`,
+    `最近运行(${MARKET.name}时间):${DT}`,
     `口径:${calibers.join(' + ')}`,
     `命中:${hitCount} 条    上传 Google:${uploadState}`,
     '',

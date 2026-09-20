@@ -2,26 +2,56 @@
  * 表头识别 + 数字解析 + 页面侧扫描,统一收口在这里。
  *
  * 为什么要有这个文件:
- *  1) 后台界面语言会变(中文 / English / Tiếng Việt)。以前表头正则全写死中文
+ *  1) 后台界面语言会变(中文 / English / Tiếng Việt / ไทย / Bahasa / Filipino)。以前表头正则全写死中文
  *     (作品ID / 成本 / 账号),页面一显示英文就找不到表格 → 误报"表格始终未加载"。
- *  2) 数字格式也跟着语言变。越南语千分位用点:"1.234.567 ₫"。
+ *  2) 数字格式也跟着语言变。越南语/印尼语千分位用点:"1.234.567 ₫" / "Rp1.234.567"。
  *     旧写法 parseFloat(去掉非数字和点) 会把它读成 1.234 —— 差一百万倍,成本永远不达阈值。
+ *  3) 币种随市场变(₫ / ฿ / Rp / RM / ₱ / S$),货币判断正则从 config.json 的 market.symbols 生成。
  *
  * pageWorker 是"自包含"函数(所有 helper 都嵌在里面),
- * 这样可以直接丢给 page.evaluate,不需要 eval,也不受页面 CSP 影响。
+ * 这样可以直接丢给 page.evaluate,不需要 eval,也不受页面 CSP 影响 —— 所以它不能 import,
+ * 市场相关的东西(RE.cur / rate / assumeLocal)都通过 args 传进去。
  */
+import { MARKET } from './util.js';
 
-export const COL_RE = {
-  // 比对前会把表头去掉所有空白并转小写:"Video ID" → "videoid","Chi phí (₫)" → "chiphí(₫)"
-  id: '作品id|视频id|videoid|idvideo|creativeid|postid|itemid|mãvideo',
-  acct: '账号|帐号|account|tàikhoản|taikhoan|nhàsángtạo|creator|username|handle',
-  // 成本列先用严格版(避免匹配到 "Cost per xxx"),找不到再退宽松版
-  cost: '^(成本|cost|chiphí|chiphi|spend|amountspent|tổngchiphí)([(（₫]|vnd|đ|$)',
-  costLoose: '^(成本|cost|chiphí|chiphi|spend)',
-  // 用词边界而不是锚在开头 —— 直播页的列叫「基本目标 ROI」,开头锚死就认不到了
-  roi: '投资回报率|\\broas\\b|\\broi\\b|lợitứcđầutư|tỷsuấthoànvốn',
-  rev: '^(总收入|总收益|grossrevenue|revenue|totalrevenue|doanhthu|tổngdoanhthu|gmv)',
+const escapeRe = (t) => String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// 各语言表头关键词。比对前会把表头去掉所有空白并转小写:"Video ID" → "videoid","Chi phí (₫)" → "chiphí(₫)"
+// 顺序:中 / 英 / 越 / 泰 / 印尼 / 马来 / 菲律宾
+const W = {
+  id: '作品id|视频id|videoid|idvideo|idngvideo|creativeid|postid|itemid|mãvideo|รหัสวิดีโอ|รหัส|^id$',
+  acct: '账号|帐号|account|tàikhoản|taikhoan|nhàsángtạo|creator|username|handle|บัญชี|akun|akaun',
+  cost: '成本|cost|chiphí|chiphi|spend|amountspent|tổngchiphí|ค่าใช้จ่าย|biaya|kos|gastos',
+  costLoose: '成本|cost|chiphí|chiphi|spend|ค่าใช้จ่าย|biaya|kos|gastos',
+  roi: '投资回报率|\\broas\\b|\\broi\\b|lợitứcđầutư|tỷsuấthoànvốn|ผลตอบแทน|imbalhasil|pulangan',
+  rev: '总收入|总收益|grossrevenue|revenue|totalrevenue|doanhthu|tổngdoanhthu|gmv|รายได้|pendapatan|totalpendapatan|hasil|jumlahhasil|kita|kabuuangkita',
+  total: '合计|总计|汇总|total|tổng|รวม|jumlah|kabuuan',
 };
+
+/**
+ * 按市场生成一套表头/货币正则(全是正则源码字符串,给 pageWorker 用)。
+ * 默认市场取 config.json 的 market;自检/别国可传自己的 market 块。
+ */
+export function buildColRe(market = MARKET) {
+  const syms = (market.symbols || []).map((x) => escapeRe(String(x).toLowerCase())).filter(Boolean);
+  const cur = syms.length ? syms.join('|') : escapeRe(String(market.currency || '').toLowerCase());
+  return {
+    id: W.id,
+    acct: W.acct,
+    // 成本列先用严格版(词后面紧跟括号 / 货币符号 / 结尾,避免匹配到 "Cost per xxx"),找不到再退宽松版
+    cost: `^(${W.cost})([(（]|${cur}|$)`,
+    costLoose: `^(${W.costLoose})`,
+    // 用词边界而不是锚在开头 —— 直播页的列叫「基本目标 ROI」,开头锚死就认不到了
+    roi: W.roi,
+    rev: `^(${W.rev})`,
+    // 表尾合计行首列的措辞
+    total: `^(${W.total})`,
+    // 本币判断:单元格或表头里出现任一货币符号/缩写(大小写不敏感)
+    cur,
+  };
+}
+
+export const COL_RE = buildColRe(MARKET);
 
 /**
  * 在页面上下文执行。mode:
@@ -31,7 +61,10 @@ export const COL_RE = {
  *   'scan'    → 全量扫描 + 翻页 + 阈值判定 + 去重
  */
 export function pageWorker(args) {
-  const { mode, RE, costThreshold, roiThreshold, vndRate, n } = args;
+  const { mode, RE, costThreshold, roiThreshold, n } = args;
+  const rate = Number(args.rate) || 1; // 1 人民币 = rate 本币
+  const assumeLocal = args.assumeLocal === true; // 没货币符号时是否一律当本币(小面额币种)
+  const bigUnit = rate >= 100; // 越南盾/印尼盾这类大面额币种,才启用「数值大得离谱 → 必是本币」的兜底
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const mkRe = (src) => new RegExp(src, 'i');
@@ -87,14 +120,16 @@ export function pageWorker(args) {
     };
   };
 
-  /** 成本归一化成人民币。货币符号可能在单元格里,也可能只写在表头上。 */
+  /** 金额归一化成人民币。货币符号可能在单元格里,也可能只写在表头上。 */
+  const curRe = RE.cur ? mkRe(RE.cur) : null;
+  const totalRe = mkRe(RE.total || '^(合计|总计|汇总|total|tổng)');
   const toCNY = (cellText, costHeader) => {
     const v = parseLocaleNum(cellText);
     if (!v) return 0;
     const hay = (cellText || '') + ' ' + (costHeader || '');
-    const isVnd = /vnd|₫|đ/i.test(hay);
-    // 没标货币但数值大得离谱 → 只可能是越南盾(单素材消耗不可能有 ¥5000+)
-    if (isVnd || v > 5000) return v / vndRate;
+    const isLocal = curRe ? curRe.test(hay) : false;
+    // 没标货币但数值大得离谱 → 只可能是本币(单素材消耗不可能有 ¥5000+);仅对大面额币种成立
+    if (isLocal || assumeLocal || (bigUnit && v > 5000)) return v / rate;
     return v;
   };
 
@@ -155,7 +190,7 @@ export function pageWorker(args) {
         for (const tr of cands) return tr;
         for (const tr of [...t.querySelectorAll('tbody tr')]) {
           const first = (tr.querySelector('td')?.innerText || '').replace(/\s+/g, '');
-          if (/^(合计|总计|汇总|total|tổng)/i.test(first)) return tr;
+          if (totalRe.test(first)) return tr;
         }
         return null;
       })();
@@ -183,7 +218,7 @@ export function pageWorker(args) {
           const d = [...tr.querySelectorAll('td')];
           const g = (i) => (i >= 0 && d[i] ? d[i].innerText.trim() : '');
           const first = (d[0]?.innerText || '').replace(/\s+/g, '');
-          if (/^(合计|总计|汇总|total|tổng)/i.test(first)) continue; // 别把合计行也加进去
+          if (totalRe.test(first)) continue; // 别把合计行也加进去
           const id = g(mm.id) || g(0);
           const key = id + '|' + g(mm.cost);
           if (seen.has(key)) continue;

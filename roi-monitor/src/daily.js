@@ -1,4 +1,4 @@
-import { buildDashboardUrl, vnDayOf, info, warn } from './util.js';
+import { buildDashboardUrl, vnDayOf, info, warn, marketOf } from './util.js';
 import { getPage, gotoAndWaitTable, setLiveInterception } from './browser.js';
 import { scanTotals } from './scan.js';
 import { upsertDailyTotals } from './feishu.js';
@@ -13,7 +13,7 @@ import { upsertDailyTotals } from './feishu.js';
 export async function collectDailyTotals(config, campaigns, deps, daysAgo = 1) {
   const ctx = deps.context || (deps.getContext && deps.getContext());
   if (!ctx) return { ok: false, reason: '没有可用的浏览器' };
-  const day = vnDayOf(config.timezoneOffsetHours, daysAgo);
+  const day = vnDayOf(marketOf(config).tzOffsetHours, daysAgo);
   info(`===== 采集 ${day.key} 各计划合计(成本/GMV/ROI)=====`);
 
   const page = await getPage(ctx);

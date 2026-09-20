@@ -36,6 +36,16 @@ _DEFAULTS = {
     "vnd_per_rmb": 3860,                                  # 1 元人民币 = 多少越南盾
     "output_dir": "~/Desktop/KANS主播排名报表",           # 报表输出目录
     "columns": {"date": 0, "host_vn": 7, "host_cn": 8, "gmv": 13, "roi": 16},  # 列索引，从 0 开始
+    # 本地货币：code 用在英文/本地语工作表表头，zh 用在中文表备注
+    "currency": {"code": "VND", "zh": "越南盾"},
+    # 第三张工作表的本地语言（默认越南语）。换国家把这几段文案换成当地语言即可
+    "local_lang": {
+        "sheet": "Tiếng Việt",
+        "headers": ["Hạng", "Host", "GMV trước hoàn ({cur})"],
+        "day_title": "Xếp hạng ngày  {d:%d/%m/%Y}",
+        "month_title": "Xếp hạng tháng  {d:%m/%Y}",
+        "note": "Phạm vi: dữ liệu đến hết {d:%d/%m/%Y} (không tính hôm nay) | GMV trước hoàn | tỷ giá 1 CNY = {rate:,} {cur}",
+    },
 }
 
 def _load_cfg():
@@ -46,7 +56,9 @@ def _load_cfg():
             try:
                 user = _json.load(open(cand, encoding="utf-8"))
                 cols = {**cfg["columns"], **user.pop("columns", {})}
-                cfg.update(user); cfg["columns"] = cols
+                cur = {**cfg["currency"], **user.pop("currency", {})}
+                loc = {**cfg["local_lang"], **user.pop("local_lang", {})}
+                cfg.update(user); cfg["columns"] = cols; cfg["currency"] = cur; cfg["local_lang"] = loc
                 break
             except Exception:  # noqa
                 pass
@@ -64,6 +76,9 @@ COL_HOST_VN = _CFG["columns"]["host_vn"]
 COL_HOST_CN = _CFG["columns"]["host_cn"]
 COL_GMV_HOST = _CFG["columns"]["gmv"]     # 退前 GMV（越南盾）
 COL_ROI = _CFG["columns"]["roi"]
+CUR = _CFG["currency"]["code"]          # 本地货币代码，如 VND / THB / IDR
+CUR_ZH = _CFG["currency"]["zh"]        # 本地货币中文名
+_LOC = _CFG["local_lang"]
 # ============================================================
 
 
@@ -209,32 +224,31 @@ LEFT = Alignment(horizontal="left", vertical="center")
 SHEET_LANGS = {
     "简体中文": {
         "name_key": "cn",
-        "to_money": lambda vnd: round(vnd / VND_PER_RMB),
+        "to_money": lambda v: round(v / VND_PER_RMB),
         "headers": ["排名", "主播", "退前GMV(元)"],
         "day_title": lambda d: f"当日排名  {d:%Y-%m-%d}",
         "month_title": lambda d: f"当月总排名  {d:%Y-%m}",
         "note": lambda d: (f"统计口径：数据截止 {d:%Y-%m-%d}（不含当天）｜ "
-                           f"退前GMV ｜ 汇率 1元 = {VND_PER_RMB:,} 越南盾"),
+                           f"退前GMV ｜ 汇率 1元 = {VND_PER_RMB:,} {CUR_ZH}"),
         "widths": [8, 18, 18],
     },
     "English": {
         "name_key": "vn",
-        "to_money": lambda vnd: vnd,
-        "headers": ["Rank", "Host", "GMV before refund (VND)"],
+        "to_money": lambda v: v,
+        "headers": ["Rank", "Host", f"GMV before refund ({CUR})"],
         "day_title": lambda d: f"Daily Ranking  {d:%Y-%m-%d}",
         "month_title": lambda d: f"Monthly Ranking  {d:%Y-%m}",
         "note": lambda d: (f"Scope: data through {d:%Y-%m-%d} (today excluded) | "
-                           f"GMV before refund | rate 1 CNY = {VND_PER_RMB:,} VND"),
+                           f"GMV before refund | rate 1 CNY = {VND_PER_RMB:,} {CUR}"),
         "widths": [8, 20, 26],
     },
-    "Tiếng Việt": {
+    _LOC["sheet"]: {
         "name_key": "vn",
-        "to_money": lambda vnd: vnd,
-        "headers": ["Hạng", "Host", "GMV trước hoàn (VND)"],
-        "day_title": lambda d: f"Xếp hạng ngày  {d:%d/%m/%Y}",
-        "month_title": lambda d: f"Xếp hạng tháng  {d:%m/%Y}",
-        "note": lambda d: (f"Phạm vi: dữ liệu đến hết {d:%d/%m/%Y} (không tính hôm nay) | "
-                           f"GMV trước hoàn | tỷ giá 1 CNY = {VND_PER_RMB:,} VND"),
+        "to_money": lambda v: v,
+        "headers": [h.replace("{cur}", CUR) for h in _LOC["headers"]],
+        "day_title": lambda d: _LOC["day_title"].format(d=d),
+        "month_title": lambda d: _LOC["month_title"].format(d=d),
+        "note": lambda d: _LOC["note"].format(d=d, rate=VND_PER_RMB, cur=CUR),
         "widths": [8, 20, 24],
     },
 }

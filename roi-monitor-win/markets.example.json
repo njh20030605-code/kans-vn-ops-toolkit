@@ -1,0 +1,53 @@
+{
+  "_说明": "挑一个国家，把它那段整体复制到 config.json 的 market 字段里，再按当天实际汇率改 rateToCny（= 1 人民币值多少本币）。rateToCny 只影响成本阈值换算，写得离谱会让命中数量失真。tzOffsetHours 决定「今天」从几点算起，别填错。symbols 是页面上可能出现的货币写法，表头/单元格靠它判断哪一列是钱。",
+  "_用法": "cp markets.example.json 里的一段 → config.json 的 \"market\"；老配置里的 vndToCnyRate / timezoneOffsetHours 仍可用（会自动折算），但建议迁过来。也可以运行 node src/index.js config 自动迁移。",
+
+  "VN": {
+    "code": "VN",
+    "name": "越南",
+    "currency": "VND",
+    "symbols": ["₫", "đ", "VND"],
+    "tzOffsetHours": 7,
+    "rateToCny": 3891
+  },
+  "TH": {
+    "code": "TH",
+    "name": "泰国",
+    "currency": "THB",
+    "symbols": ["฿", "THB"],
+    "tzOffsetHours": 7,
+    "rateToCny": 4.5
+  },
+  "ID": {
+    "code": "ID",
+    "name": "印尼",
+    "currency": "IDR",
+    "symbols": ["Rp", "IDR"],
+    "tzOffsetHours": 7,
+    "rateToCny": 2250
+  },
+  "MY": {
+    "code": "MY",
+    "name": "马来西亚",
+    "currency": "MYR",
+    "symbols": ["RM", "MYR"],
+    "tzOffsetHours": 8,
+    "rateToCny": 0.6
+  },
+  "PH": {
+    "code": "PH",
+    "name": "菲律宾",
+    "currency": "PHP",
+    "symbols": ["₱", "PHP"],
+    "tzOffsetHours": 8,
+    "rateToCny": 8.0
+  },
+  "SG": {
+    "code": "SG",
+    "name": "新加坡",
+    "currency": "SGD",
+    "symbols": ["S$", "SGD"],
+    "tzOffsetHours": 8,
+    "rateToCny": 0.18
+  }
+}

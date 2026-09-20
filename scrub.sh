@@ -54,7 +54,7 @@ done
 sd -E 's/"workbook_id": "[A-Za-z0-9_-]{20,}",/"workbook_id": "",/' "$R/host-ranking/report_core.py"
 
 # 6. 插件 README 的内部使用声明
-sd 's/ · 仅供内部使用，勿外传 \/ 勿用于盈利 · Beta 测试版//' "$R/vnd-cny-extension/README.md"
+sd 's/ · 仅供内部使用，勿外传 \/ 勿用于盈利 · Beta 测试版//' "$R/fx-extension/README.md"
 
 # 8. 本机配置不进仓库，只留 *.example.json 模板
 rm -f "$R/feishu-api/settings.json" "$R/feishu-api/kans-board/config.json" "$R/feishu-api/intern-workflow/config.json"
@@ -64,8 +64,26 @@ if [ -f "$R/feishu-api/creative-exclusion/config.json" ]; then
 fi
 rm -f "$R/host-ranking/config.json"
 
+# 9. 飞书租户域名 / 多维表格 token / 云盘文件夹 token → 占位符（全仓库）
+for pat in \
+  's#gvh59x1f62p\.feishu\.cn#你的域名.feishu.cn#g' \
+  's/AMD3bW73qanEQmsg7mCcfFB6nTd/填多维表格appToken/g' \
+  's/DYfDb1Q7Ea01v7sfeeEcDJwEn4b/填多维表格appToken/g' \
+  's/XijobxWUVaaWbtsAJ6ocbg1Kn2g/填多维表格appToken/g' \
+  's/QDp7bQnrcaSBtQszUQ8c86IBnRe/填多维表格appToken/g' \
+  's/EmnkfFX7olLdS3driGScabKfnxd/填云盘文件夹token/g' \
+  's/1sgOkmmUSLnjCOmk2WKuuXzGnAh7E5v_e/填GoogleDrive文件夹ID/g' \
+  -E's/"(tableId|dailyTableId|history)": "tbl[A-Za-z0-9]+"/"\1": "tbl填表ID"/g' ; do
+  case "$pat" in
+    -E*) opt=-E; expr="${pat#-E}" ;;
+    *)   opt=""; expr="$pat" ;;
+  esac
+  files=$(grep -rIl --exclude-dir=.git --exclude=scrub.sh -E 'gvh59x1f62p|AMD3bW73|DYfDb1Q7|XijobxWU|QDp7bQnr|EmnkfFX7|1sgOkmmU|"(tableId|dailyTableId|history)": "tbl' "$R" || true)
+  for f in $files; do [ -n "$opt" ] && sd -E "$expr" "$f" || sd "$expr" "$f"; done
+done
+
 # 7. 自检：不该出现的东西
-if grep -rIn -E 'Ryan|Pham|杨佳林|ou_[0-9a-f]{20,}|oc_[0-9a-f]{20,}|1u_5ZKG9|njh20030605@' "$R" --exclude-dir=.git --exclude=scrub.sh; then
+if grep -rIn -E 'Ryan|Pham|杨佳林|ou_[0-9a-f]{20,}|oc_[0-9a-f]{20,}|1u_5ZKG9|njh20030605@|gvh59x1f62p|AMD3bW73|DYfDb1Q7|XijobxWU|QDp7bQnr|EmnkfFX7|1sgOkmmU' "$R" --exclude-dir=.git --exclude=scrub.sh; then
   echo "❌ 脱敏未完成，见上"; exit 1
 fi
 echo "✅ scrub ok"

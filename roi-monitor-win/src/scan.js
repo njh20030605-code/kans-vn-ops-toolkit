@@ -1,17 +1,23 @@
-import { info, warn } from './util.js';
+import { info, warn, marketOf } from './util.js';
 import { COL_RE, pageWorker } from './columns.js';
 import { hardDeadline } from './browser.js';
+
+/** 从 config 取页面侧需要的市场参数:汇率(1¥=rate 本币)+ 无符号时是否当本币。 */
+export function marketArgs(config) {
+  const m = marketOf(config);
+  return { rate: m.rateToCny, assumeLocal: m.assumeLocalCurrency === true };
+}
 
 /**
  * 在页面上下文执行扫描:归一化¥、阈值判定、翻页、去重。
  * 返回命中数组 [{ workId, acct, costCNY, roi }]。
- * 表头识别/数字解析的多语言规则统一在 columns.js。
+ * 表头识别/数字解析的多语言规则统一在 columns.js;rate = 1 人民币兑多少本币。
  */
-export async function scanCurrentTable(page, { costThreshold, roiThreshold, vndRate }) {
+export async function scanCurrentTable(page, { costThreshold, roiThreshold, rate, assumeLocal }) {
   // 页面卡死时 evaluate 会无限期等下去,必须有硬超时(翻页最多 10 页,90 秒绰绰有余)
   try {
     return await hardDeadline(
-      page.evaluate(pageWorker, { mode: 'scan', RE: COL_RE, costThreshold, roiThreshold, vndRate }),
+      page.evaluate(pageWorker, { mode: 'scan', RE: COL_RE, costThreshold, roiThreshold, rate, assumeLocal }),
       90000,
       '扫描表格'
     );
@@ -25,10 +31,10 @@ export async function scanCurrentTable(page, { costThreshold, roiThreshold, vndR
  * 只读取表格前 N 行,用于空结果兜底校验(§3.1)。
  * 返回 [{ workId, acct, costCNY, roi }]。
  */
-export async function peekTopRows(page, { vndRate, n = 5 }) {
+export async function peekTopRows(page, { rate, assumeLocal, n = 5 }) {
   try {
     return await hardDeadline(
-      page.evaluate(pageWorker, { mode: 'peek', RE: COL_RE, vndRate, n }),
+      page.evaluate(pageWorker, { mode: 'peek', RE: COL_RE, rate, assumeLocal, n }),
       20000,
       '读表格前几行'
     );
@@ -45,7 +51,7 @@ export async function peekTopRows(page, { vndRate, n = 5 }) {
 export async function scanTotals(page, config) {
   try {
     const r = await hardDeadline(
-      page.evaluate(pageWorker, { mode: 'totals', RE: COL_RE, vndRate: config.vndToCnyRate }),
+      page.evaluate(pageWorker, { mode: 'totals', RE: COL_RE, ...marketArgs(config) }),
       180000,
       '统计计划合计'
     );
@@ -92,16 +98,17 @@ export async function dumpHeaders(page) {
  * 返回 { hits, empty, verified } 。
  */
 export async function scanCampaign(page, config) {
+  const mk = marketArgs(config);
   const params = {
     costThreshold: config.costThresholdCNY,
     roiThreshold: config.roiThreshold,
-    vndRate: config.vndToCnyRate,
+    ...mk,
   };
   let hits = await scanCurrentTable(page, params);
   if (hits.length > 0) return { hits, empty: false, verified: true, colWarn: null };
 
   // 空结果 → 规则兜底:看前几行是否真的都不满足
-  const top = await peekTopRows(page, { vndRate: config.vndToCnyRate, n: 5 });
+  const top = await peekTopRows(page, { ...mk, n: 5 });
 
   // 0 命中时做一次列识别体检 —— 专治"界面换了语言/措辞,列认不出来,于是永远 0 命中"这种闷声出错
   const colWarn = await checkColumns(page, top);

@@ -1,6 +1,6 @@
 const { api } = require('./lib');
-const FOLDER = 'EmnkfFX7olLdS3driGScabKfnxd';
-const BASE = 'https://gvh59x1f62p.feishu.cn/base/XijobxWUVaaWbtsAJ6ocbg1Kn2g';
+const FOLDER = '填云盘文件夹token';
+const BASE = 'https://你的域名.feishu.cn/base/填多维表格appToken';
 const el = (t) => ({ text_run: { content: t } });
 const H1 = (t) => ({ block_type: 3, heading1: { elements: [el(t)] } });
 const H2 = (t) => ({ block_type: 4, heading2: { elements: [el(t)] } });
@@ -52,5 +52,5 @@ const blocks = [
   const id = doc.document.document_id;
   for (let i = 0; i < blocks.length; i += 40)
     await api('POST', `/open-apis/docx/v1/documents/${id}/blocks/${id}/children`, { children: blocks.slice(i, i + 40) });
-  console.log('https://gvh59x1f62p.feishu.cn/docx/' + id);
+  console.log('https://你的域名.feishu.cn/docx/' + id);
 })().catch(e => { console.error('ERR', e.message); process.exit(1); });

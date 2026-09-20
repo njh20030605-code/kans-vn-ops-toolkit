@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { info, warn, resolvePath, BRAND } from './util.js';
+import { info, warn, resolvePath, BRAND, MARKET } from './util.js';
 
 export function driveEnabled(config) {
   const g = config.output?.gdrive;
@@ -60,7 +60,7 @@ export async function uploadStatusNote(config, DT, state, message) {
   const fpath = path.join(dir, fname);
   const content =
     `${BRAND} 高成本低ROI 预警程序 · 情况说明\n` +
-    `时间(越南):${DT}\n` +
+    `时间(${MARKET.name}):${DT}\n` +
     `状态:${state}\n\n` +
     `${message}\n\n` +
     `处理:请到运行程序的 Mac 上,双击「启动-登录.command」重新登录一次 TikTok 卖家后台即可恢复。\n`;

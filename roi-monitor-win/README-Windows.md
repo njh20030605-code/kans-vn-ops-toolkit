@@ -157,7 +157,7 @@ Windows 这台**直接调飞书开放 API**,不经过任何中转、不依赖那
 ### 三件事
 
 **1. 每轮命中 → 写进多维表格「命中明细」**(静默,不推消息)
-   底表:https://gvh59x1f62p.feishu.cn/base/AMD3bW73qanEQmsg7mCcfFB6nTd
+   底表:https://你的域名.feishu.cn/base/填多维表格appToken
    字段:素材ID / 扫描时间 / 日期 / 口径 / 广告计划 / 达人账号 / 成本¥ / ROI / 标记 / 红色预警
 
 **2. 红色预警 → 即时推群**(消耗 > ¥200 且 ROI < 1)
@@ -198,9 +198,9 @@ Windows 这台**直接调飞书开放 API**,不经过任何中转、不依赖那
   "appSecret": "xxx",
   "chatId": "oc_填你的飞书群ID",   // 越南韩束ROI预警
   "bitable": {
-    "appToken": "AMD3bW73qanEQmsg7mCcfFB6nTd",
-    "tableId": "tblT9nDZFnVa90qO",          // 命中明细
-    "dailyTableId": "tblhTnhAwHQVB8ad"      // 计划日汇总
+    "appToken": "填多维表格appToken",
+    "tableId": "tbl填表ID",          // 命中明细
+    "dailyTableId": "tbl填表ID"      // 计划日汇总
   },
   "dailySummaryHour": 9                      // 越南时间几点推日报
 }

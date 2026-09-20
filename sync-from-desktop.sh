@@ -11,6 +11,6 @@ RS --exclude 'intern-manual/*.docx' "$D/feishu-api/" "$R/feishu-api/"
 RS --exclude data --exclude output "$P/kans-roi-monitor/" "$R/roi-monitor/"
 RS "$P/kans-roi-monitor-win/" "$R/roi-monitor-win/"
 RS --exclude '*.exe' --exclude .github --exclude dist --exclude build --exclude '*.spec' "$P/KANS主播排名报表/主播排名项目/KANS主播排名程序/" "$R/host-ranking/"
-RS "$P/【最终版】TikTok-Shopee-VND-CNY-插件-v10/" "$R/vnd-cny-extension/"
+RS "$P/TikTok-Shopee-汇率插件-v2.0-多国/" "$R/fx-extension/"
 cd "$R" && git status --short
 bash "$R/scrub.sh"

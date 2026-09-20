@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { scanCurrentTable, peekTopRows, diagColumns, scanTotals } from './scan.js';
+import { buildColRe, pageWorker } from './columns.js';
 import { markAndSort } from './output.js';
 import { gotoWithRetry, gotoAndWaitTable, setLiveInterception } from './browser.js';
 import { vnDayRanges, buildDashboardUrl, formatDT } from './util.js';
@@ -106,7 +107,7 @@ export async function selftest() {
     browser = await launchAny();
     const page = await browser.newPage();
     await page.setContent(`<html><body>${FAKE_TABLE_HTML}</body></html>`);
-    const params = { costThreshold: 70, roiThreshold: 2, vndRate: 3891 };
+    const params = { costThreshold: 70, roiThreshold: 2, rate: 3891 };
     const scanned = await scanCurrentTable(page, params);
     check('命中 2 条(W1,W2)', scanned.length === 2);
     check('命中含 W1', scanned.some((x) => x.workId === 'W1'));
@@ -116,7 +117,7 @@ export async function selftest() {
     const w1 = scanned.find((x) => x.workId === 'W1');
     check('归一化¥ 正确(500000/3891≈129)', w1 && w1.costCNY === 129);
     check('账号取第3列', w1 && w1.acct === '@alpha');
-    const top = await peekTopRows(page, { vndRate: 3891, n: 3 });
+    const top = await peekTopRows(page, { rate: 3891, n: 3 });
     check('peekTopRows 读到首行 W1', top[0] && top[0].workId === 'W1');
 
     // 真实 dashboard 布局:无 ROI 列,ROI 由 总收入/成本 计算
@@ -210,6 +211,29 @@ export async function selftest() {
     check('"2.000.000" 读成 2000000 而不是 2(→ ¥514)', n1 && n1.costCNY === 514);
     check('N1 命中(ROI=1<2)', !!n1);
     check('N2 因 ROI=4 未命中', !vn.some((x) => x.workId === 'N2'));
+
+    // 换国家:同一套代码,只换 market 块。泰铢是小面额币种,逗号千分位、点小数,表头是泰语。
+    console.log('\n[8.5] 换市场(泰国 THB:小面额 + 逗号千分位 + 泰语表头)');
+    const thMarket = { code: 'TH', name: '泰国', currency: 'THB', symbols: ['฿', 'THB'], tzOffsetHours: 7, rateToCny: 4.5 };
+    const thRe = buildColRe(thMarket);
+    const thArgs = { rate: thMarket.rateToCny, assumeLocal: true };
+    await page.setContent(`<html><body><table>
+      <thead><tr>
+        <th>รหัสวิดีโอ</th><th>บัญชี</th><th>ค่าใช้จ่าย (฿)</th><th>รายได้ (฿)</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>T1</td><td>@th1</td><td>฿1,350.00</td><td>฿1,350.00</td></tr>
+        <tr><td>T2</td><td>@th2</td><td>฿2,000.00</td><td>฿20,000.00</td></tr>
+        <tr><td>T3</td><td>@th3</td><td>฿90.00</td><td>฿90.00</td></tr>
+      </tbody></table></body></html>`);
+    const th = await page.evaluate(pageWorker, { mode: 'scan', RE: thRe, costThreshold: 70, roiThreshold: 2, ...thArgs });
+    const t1 = th.find((x) => x.workId === 'T1');
+    check('泰语表头能识别列', th.length > 0);
+    check('"฿1,350.00" → ¥300(逗号是千分位,点是小数)', t1 && t1.costCNY === 300);
+    check('T1 命中(ROI=1<2)', !!t1);
+    check('T2 因 ROI=10 未命中', !th.some((x) => x.workId === 'T2'));
+    check('T3 因成本 ¥20≤70 未命中', !th.some((x) => x.workId === 'T3'));
+    check('泰国账号列取对(@th1)', t1 && t1.acct === '@th1');
 
     // 导航容错:页面永远不响应时,不能抛异常把整轮打死
     console.log('\n[9] 导航容错(页面卡住不响应)');

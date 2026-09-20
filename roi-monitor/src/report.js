@@ -1,8 +1,8 @@
-import { BRAND } from './util.js';
+import { BRAND, MARKET, marketOf } from './util.js';
 import { readDailyTotals, vnDateOf } from './feishu.js';
 
 /**
- * 每日数据通报(默认越南时间早上 9 点推)。
+ * 每日数据通报(默认市场当地时间早上 9 点推)。
  *
  * 早上发,所以报告对象是**昨天一整天**。只看三个字段,按广告计划维度:
  *   成本 / GMV / ROI
@@ -85,14 +85,15 @@ export async function buildDailyReport(config) {
   }
 
   lines.push('---');
-  lines.push(`口径:越南时间 ${d1} 全天,金额已按 ₫/${config.vndToCnyRate} 折成人民币。`);
+  const mk = marketOf(config);
+  lines.push(`口径:${MARKET.name}时间 ${d1} 全天,金额已按 ${mk.currency}/${mk.rateToCny} 折成人民币。`);
   lines.push('数字来自创意表格合计(素材层),ROI = GMV ÷ 成本。');
   if (config.feishu?.bitable?.appToken) {
-    lines.push(`[点开底表看明细](https://gvh59x1f62p.feishu.cn/base/${config.feishu.bitable.appToken})`);
+    lines.push(`[点开底表看明细](https://你的域名.feishu.cn/base/${config.feishu.bitable.appToken})`);
   }
 
   return {
-    title: `📊 ${BRAND} 越南投放日报 · ${d1}`,
+    title: `📊 ${BRAND} ${MARKET.name}投放日报 · ${d1}`,
     template: A.roi > 0 && Ap.roi > 0 && A.roi < Ap.roi * 0.8 ? 'orange' : 'blue',
     lines,
   };
@@ -107,7 +108,7 @@ export function buildRedAlertCard(config, DT, redHits, histStats = new Map(), da
   const R = config.notify?.redAlert || { costThresholdCNY: 200, roiThreshold: 1 };
   const lines = [`条件:消耗 > ¥${R.costThresholdCNY} 且 ROI < ${R.roiThreshold}`, ''];
 
-  // 按口径分组。越南 10 点和 14 点那两轮会同时扫「当天」和「近7天」,
+  // 按口径分组。当地 10 点和 14 点那两轮会同时扫「当天」和「近7天」,
   // 不分开的话 ¥1779 到底是一天烧的还是七天累计的,完全看不出来。
   const ORDER = ['当天', '近7天'];
   const groups = ORDER.map((c) => [c, redHits.filter((r) => r.caliber === c)]).filter(([, a]) => a.length);
@@ -141,7 +142,7 @@ export function buildRedAlertCard(config, DT, redHits, histStats = new Map(), da
   }
 
   if (config.feishu?.bitable?.appToken) {
-    lines.push(`[点开底表看明细](https://gvh59x1f62p.feishu.cn/base/${config.feishu.bitable.appToken})`);
+    lines.push(`[点开底表看明细](https://你的域名.feishu.cn/base/${config.feishu.bitable.appToken})`);
   }
   return { title: `🔴 ${BRAND} 红色预警:${redHits.length} 条高耗低效素材(${DT})`, template: 'red', lines };
 }

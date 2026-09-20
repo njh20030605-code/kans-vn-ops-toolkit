@@ -1,9 +1,19 @@
 {
   "brand": "KANS",
+  "market": {
+    "code": "VN",
+    "name": "越南",
+    "currency": "VND",
+    "symbols": [
+      "₫",
+      "đ",
+      "VND"
+    ],
+    "tzOffsetHours": 7,
+    "rateToCny": 3891
+  },
   "costThresholdCNY": 70,
   "roiThreshold": 2,
-  "vndToCnyRate": 3891,
-  "timezoneOffsetHours": 7,
   "sevenDayHours": [
     10,
     14
@@ -53,9 +63,9 @@
     "chatId": "",
     "chatName": "越南韩束ROI预警",
     "bitable": {
-      "appToken": "AMD3bW73qanEQmsg7mCcfFB6nTd",
-      "tableId": "tblT9nDZFnVa90qO",
-      "dailyTableId": "tblhTnhAwHQVB8ad"
+      "appToken": "填多维表格appToken",
+      "tableId": "tbl填表ID",
+      "dailyTableId": "tbl填表ID"
     },
     "dailySummaryHour": 9
   },

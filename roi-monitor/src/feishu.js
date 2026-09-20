@@ -1,4 +1,4 @@
-import { info, warn } from './util.js';
+import { info, warn, marketOf } from './util.js';
 
 /**
  * 飞书对接(自建应用「My Claude」)。
@@ -236,8 +236,9 @@ export async function sendCard(config, { title, template = 'blue', lines }) {
 
 // ---------------- 工具 ----------------
 
+/** 市场当地的今天日期键 "YYYY-MM-DD"(函数名沿用 vn 前缀,语义是当地)。 */
 function vnDateOf(config) {
-  const off = (config.timezoneOffsetHours ?? 7) * 3600e3;
+  const off = marketOf(config).tzOffsetHours * 3600e3;
   const d = new Date(Date.now() + off);
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }

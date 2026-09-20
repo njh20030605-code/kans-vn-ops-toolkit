@@ -3,63 +3,45 @@
 <head>
 <meta charset="utf-8">
 <style>
-  :root{
-    --brand1:#2b5cff; --brand2:#00c2a8; --ink:#1f2329; --sub:#86909c; --line:#f0f1f3;
-  }
+  :root{ --brand1:#2b5cff; --brand2:#00c2a8; --ink:#1f2329; --sub:#86909c; --line:#f0f1f3; }
   *{ box-sizing:border-box; }
-  body{ width:300px; margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--ink); background:#fff; }
-
-  /* 顶部渐变头 */
+  body{ width:310px; margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--ink); background:#fff; }
   .hd{ background:linear-gradient(135deg,var(--brand1),var(--brand2)); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:10px; }
   .hd img{ width:34px; height:34px; border-radius:9px; box-shadow:0 2px 8px rgba(0,0,0,.18); }
   .hd .t1{ font-size:14px; font-weight:700; line-height:1.2; }
   .hd .t2{ font-size:11px; opacity:.9; margin-top:2px; }
-  .beta{ margin-left:auto; background:rgba(255,255,255,.22); font-size:10px; padding:2px 7px; border-radius:10px; font-weight:600; letter-spacing:.5px; }
-
   .body{ padding:14px 16px 12px; }
-
-  /* 汇率卡 */
   .rateCard{ background:linear-gradient(135deg,#f4f8ff,#eefdf9); border:1px solid #e8f0ff; border-radius:12px; padding:12px 14px; }
   .rateCard .lab{ font-size:11px; color:var(--sub); }
   .rate{ font-size:21px; font-weight:800; margin-top:3px; letter-spacing:.2px; }
   .rate .u{ font-size:12px; font-weight:600; color:var(--sub); }
   .sub{ font-size:11px; color:var(--sub); margin-top:4px; }
   .warn{ color:#ff7d00; font-size:11px; margin-top:6px; }
-
-  .row{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; }
-  .row .lab{ font-size:13px; font-weight:500; }
-
-  /* 开关 */
-  .sw{ position:relative; width:42px; height:24px; }
+  .row{ display:flex; align-items:center; justify-content:space-between; margin-top:12px; gap:10px; }
+  .row .lab{ font-size:13px; font-weight:500; white-space:nowrap; }
+  select{ flex:1; border:1px solid #dfe3ea; border-radius:8px; padding:6px 8px; font-size:13px; background:#fff; color:var(--ink); }
+  select:disabled{ background:#f5f6f8; color:#8a909a; }
+  .auto{ font-size:11px; color:var(--sub); margin-top:4px; }
+  .sw{ position:relative; width:42px; height:24px; flex:none; }
   .sw input{ opacity:0; width:0; height:0; }
   .slider{ position:absolute; inset:0; background:#d5d8de; border-radius:24px; transition:.2s; }
   .slider:before{ content:""; position:absolute; height:20px; width:20px; left:2px; top:2px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
   input:checked + .slider{ background:linear-gradient(135deg,var(--brand1),var(--brand2)); }
   input:checked + .slider:before{ transform:translateX(18px); }
-
   .btns{ display:flex; gap:8px; margin-top:14px; }
-  button{ flex:1; border:none; border-radius:9px; padding:9px 0; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; }
+  button{ flex:1; border:none; border-radius:9px; padding:9px 0; font-size:13px; font-weight:600; cursor:pointer; }
   .primary{ background:linear-gradient(135deg,var(--brand1),var(--brand2)); color:#fff; }
-  .primary:hover{ filter:brightness(1.05); }
   .ghost{ background:#f2f3f5; color:var(--ink); }
-  .ghost:hover{ background:#e9ebef; }
-  .tip{ text-align:center; font-size:11px; color:#00b42a; height:14px; margin-top:6px; }
-
-  /* 署名 */
-  .credit{ margin-top:12px; padding:10px 12px; background:#fafbfc; border-top:1px solid var(--line); border-radius:0 0 4px 4px; }
-  .credit .a{ font-size:11px; color:#8a909a; line-height:1.6; }
-  .credit .cheer{ margin-top:4px; font-size:11.5px; font-weight:700;
-    background:linear-gradient(135deg,var(--brand1),var(--brand2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .credit{ margin-top:12px; padding:8px 12px; background:#fafbfc; border-top:1px solid var(--line); font-size:11px; color:#8a909a; }
 </style>
 </head>
 <body>
   <div class="hd">
     <img src="icons/icon128.png" alt="">
     <div>
-      <div class="t1">VND → 人民币 实时换算</div>
-      <div class="t2">TikTok 越南后台 · 自动换算</div>
+      <div class="t1">跨境后台汇率换算</div>
+      <div class="t2">TikTok Shop / Shopee · 东南亚六国</div>
     </div>
-    <span class="beta">BETA</span>
   </div>
 
   <div class="body">
@@ -70,6 +52,10 @@
       <div class="warn" id="warn" style="display:none"></div>
     </div>
 
+    <div class="row"><span class="lab">市场</span><select id="market"></select></div>
+    <div class="auto" id="auto"></div>
+    <div class="row"><span class="lab">换算成</span><select id="target"></select></div>
+
     <div class="row">
       <span class="lab">在后台开启换算</span>
       <label class="sw"><input type="checkbox" id="toggle" checked><span class="slider"></span></label>
@@ -79,14 +65,11 @@
       <button class="primary" id="refresh">刷新汇率</button>
       <button class="ghost" id="close">关闭</button>
     </div>
-    <div class="tip" id="tip"></div>
   </div>
 
-  <div class="credit">
-    <div class="a">作者：Jasper Yang，仅供内部使用。Beta 测试版。</div>
-    <div class="cheer">KANS 越南团队，一切顺利！天天爆单！🔥</div>
-  </div>
+  <div class="credit">作者 Jasper Yang · 汇率为参考值，结算仍按平台原币</div>
 
+<script src="markets.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>

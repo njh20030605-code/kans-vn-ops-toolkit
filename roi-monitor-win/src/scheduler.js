@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { runOnce } from './run.js';
-import { loadConfig, loadCampaigns, vnNow, formatDT, info, warn, error, srcFingerprint, VERSION, BRAND } from './util.js';
+import { loadConfig, loadCampaigns, vnNow, formatDT, info, warn, error, srcFingerprint, VERSION, BRAND, MARKET, SELLER_HOST, marketOf } from './util.js';
 import { notify } from './notify.js';
 import { driveEnabled, uploadStatusNote } from './gdrive.js';
 import { feishuEnabled, sendCard, vnDateOf } from './feishu.js';
@@ -10,7 +10,7 @@ import { getLastSummaryDate, setLastSummaryDate } from './store.js';
 import { shortErr } from './browser.js';
 
 /**
- * 每小时整点触发一次。判断越南小时是否落在 sevenDayHours(默认 10/14)决定是否加近7天口径。
+ * 每小时整点触发一次。判断当地(市场时区)小时是否落在 sevenDayHours(默认 10/14)决定是否加近7天口径。
  * 每轮都重新读 config.json / campaigns.json —— 所以改阈值、加计划无需重启,下一轮自动生效。
  *
  * 稳定性策略(2026-09 加固):
@@ -21,7 +21,7 @@ import { shortErr } from './browser.js';
  *  · 跑满 N 轮(默认 12)主动重启一次浏览器,清掉 Chromium 长跑后的内存/渲染残留。
  */
 export function startScheduler(config, campaigns, deps) {
-  info('调度启动:每小时整点扫描(当天);越南 10/14 点加扫近7天。');
+  info(`调度启动:每小时整点扫描(当天);${MARKET.name} ${(config.sevenDayHours || [10, 14]).join('/')} 点加扫近7天。`);
   info('提示:改 config.json 阈值或 campaigns.json 计划后,下一轮自动生效,无需重启。');
 
   const bootFingerprint = srcFingerprint(); // 启动那一刻的代码指纹
@@ -74,9 +74,9 @@ export function startScheduler(config, campaigns, deps) {
     const alertRepeatEvery = S.alertRepeatEveryFailures || 6; // 一直不恢复时,隔几次再提醒一次
     const restartEvery = S.restartBrowserEveryRounds || 12;
 
-    const vh = vnNow(freshConfig.timezoneOffsetHours).getUTCHours();
+    const vh = vnNow(marketOf(freshConfig).tzOffsetHours).getUTCHours();
     const with7d = (freshConfig.sevenDayHours || [10, 14]).includes(vh);
-    info(`${isRetry ? '补跑触发' : '整点触发'}:越南 ${vh} 点,${with7d ? '当天+近7天' : '仅当天'}`);
+    info(`${isRetry ? '补跑触发' : '整点触发'}:${MARKET.name} ${vh} 点,${with7d ? '当天+近7天' : '仅当天'}`);
 
     let failureMsg = null;
     let needRestart = false;
@@ -130,7 +130,7 @@ export function startScheduler(config, campaigns, deps) {
         const body =
           `已连续 ${consecutiveFailures} 轮没扫成,最近一次原因:${failureMsg}\n` +
           `程序还在运行,会继续自动重试。若一直不恢复,请检查:\n` +
-          `  1) 这台电脑网络是否正常(能不能打开 seller-vn.tiktok.com)\n` +
+          `  1) 这台电脑网络是否正常(能不能打开 ${SELLER_HOST.replace(/^https?:\/\//, '')})\n` +
           `  2) 登录是否掉了 —— 双击「启动-登录」重登一次\n` +
           `  3) 电脑是否休眠/被关机`;
         await notify(freshConfig, {
@@ -142,7 +142,7 @@ export function startScheduler(config, campaigns, deps) {
         if (driveEnabled(freshConfig)) {
           await uploadStatusNote(
             freshConfig,
-            formatDT(freshConfig.timezoneOffsetHours),
+            formatDT(marketOf(freshConfig).tzOffsetHours),
             '连续失败',
             body
           ).catch(() => {});
@@ -209,7 +209,7 @@ export function startScheduler(config, campaigns, deps) {
     if (cfg.feishu?.dailyReportEnabled !== true) return;
     const hour = cfg.feishu?.dailySummaryHour;
     if (hour == null) return;
-    const vh = vnNow(cfg.timezoneOffsetHours).getUTCHours();
+    const vh = vnNow(marketOf(cfg).tzOffsetHours).getUTCHours();
     if (vh < hour) return; // 还没到点
     const today = vnDateOf(cfg);
     if (getLastSummaryDate() === today) return; // 今天已经推过
@@ -235,7 +235,7 @@ export function startScheduler(config, campaigns, deps) {
     const r = await sendCard(cfg, card);
     if (r.ok) {
       setLastSummaryDate(today);
-      info(`已推送每日数据通报(越南 ${vh} 点)。`);
+      info(`已推送每日数据通报(${MARKET.name} ${vh} 点)。`);
     } else {
       warn('日报推送失败,下一轮再试。');
     }

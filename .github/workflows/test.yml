@@ -1,0 +1,52 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fx-extension:
+    name: 汇率插件 · 单元测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: node --test test/fx-core.test.js
+        working-directory: fx-extension
+
+  roi-monitor-selftest:
+    name: ROI 预警 · 离线自检
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci || npm install
+        working-directory: roi-monitor
+      - run: npx playwright install --with-deps chromium
+        working-directory: roi-monitor
+      - run: cp campaigns.example.json campaigns.json
+        working-directory: roi-monitor
+      - run: npm run selftest
+        working-directory: roi-monitor
+
+  syntax:
+    name: 语法检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: node --check
+        run: |
+          set -e
+          for f in $(find feishu-api fx-extension roi-monitor roi-monitor-win -name '*.js' -not -path '*/node_modules/*'); do
+            node --check "$f"
+          done
+      - name: python compile
+        run: python3 -m compileall -q host-ranking

@@ -49,7 +49,7 @@ npx playwright install chromium   # 装浏览器内核(已装过可跳过)
 ## 五、Google Drive 自动上传(已接好 rclone)
 
 每轮扫描出表后,程序用 **rclone** 自动把 xlsx 传到 Google 文件夹:
-**[KANS高成本低ROI素材预警](https://drive.google.com/drive/folders/1sgOkmmUSLnjCOmk2WKuuXzGnAh7E5v_e)**,文件名就是时间串(如 `7月23日-20.00.xlsx`)。
+**[KANS高成本低ROI素材预警](https://drive.google.com/drive/folders/填GoogleDrive文件夹ID)**,文件名就是时间串(如 `7月23日-20.00.xlsx`)。
 
 - 配置在 `config.json` 的 `output.gdrive`(`enabled` / `remote` / `rootFolderId`)。不想传到云端就把 `enabled` 改 `false`。
 - 授权信息存在 rclone 自己的配置 `~/.config/rclone/rclone.conf`,不在本项目里、不进日志。

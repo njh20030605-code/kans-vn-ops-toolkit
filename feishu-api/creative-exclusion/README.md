@@ -1,7 +1,7 @@
 # 素材排除表 · Creative Exclusion（极简版，2026-09-15 重建）
 
-Base: https://gvh59x1f62p.feishu.cn/base/XijobxWUVaaWbtsAJ6ocbg1Kn2g
-app_token XijobxWUVaaWbtsAJ6ocbg1Kn2g · table tblGYc5IntNPGC8D（唯一一张表）
+Base: https://你的域名.feishu.cn/base/填多维表格appToken
+app_token 填多维表格appToken · table tblGYc5IntNPGC8D（唯一一张表）
 
 ## 8 列（英文表头，注释中英双语）
 Creative ID | Shop | Campaign · KANS Official / · KANS Globe / · One Leaf（三列单选，各店视图只露自己那列，下拉只含本店计划）| Campaign（公式合成，给 Jasper 看）| Why(3选1) | Jasper: Exclude?(Yes/No) | Jasper Notice | Intern: Done(勾) | ⚠ Robot(机器人写) + Submitted(自动)
@@ -21,5 +21,5 @@ Creative ID | Shop | Campaign · KANS Official / · KANS Globe / · One Leaf（�
 新店/新实习生：加 Shop 选项 + 复制一个 🏬 视图改筛选即可。
 
 ## 培训手册（中英）
-https://gvh59x1f62p.feishu.cn/docx/AYsqdxYXxofWMoxDsHLcZ4Evnpg  （manual.js 重生成）
+https://你的域名.feishu.cn/docx/AYsqdxYXxofWMoxDsHLcZ4Evnpg  （manual.js 重生成）
 视图 hidden_fields 可用 API 设（PATCH view property.hidden_fields）。

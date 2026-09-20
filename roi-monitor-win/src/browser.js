@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { resolvePath, sleep, jitter, info, warn } from './util.js';
+import { resolvePath, sleep, jitter, info, warn, SELLER_HOST } from './util.js';
 import { COL_RE, pageWorker } from './columns.js';
 
 /**
@@ -210,7 +210,7 @@ function campaignIdOf(url) {
 
 function alreadyLanded(page, url) {
   const cur = page.url() || '';
-  if (!/seller-vn\.tiktok\.com\/ads-creation/.test(cur)) return false;
+  if (!cur.startsWith(`${SELLER_HOST}/ads-creation`)) return false;
   const want = campaignIdOf(url);
   return !want || cur.includes(want);
 }

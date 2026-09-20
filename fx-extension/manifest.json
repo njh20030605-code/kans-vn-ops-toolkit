@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "跨境后台汇率换算 · TikTok Shop / Shopee 东南亚",
+  "version": "2.0.0",
+  "description": "把 TikTok Shop 与 Shopee 卖家后台里的越南盾 / 泰铢 / 印尼盾 / 林吉特 / 比索 / 新币金额，按实时汇率就地换算成人民币或美元显示。按域名自动识别市场。",
+  "author": "Jasper Yang",
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://*.tiktok.com/*",
+    "https://*.tiktokglobalshop.com/*",
+    "https://*.tiktokshopglobalselling.com/*",
+    "https://*.shopee.vn/*",
+    "https://*.shopee.co.th/*",
+    "https://*.shopee.co.id/*",
+    "https://*.shopee.com.my/*",
+    "https://*.shopee.ph/*",
+    "https://*.shopee.sg/*",
+    "https://open.er-api.com/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.tiktok.com/*",
+        "https://*.tiktokglobalshop.com/*",
+        "https://*.tiktokshopglobalselling.com/*",
+        "https://*.shopee.vn/*",
+        "https://*.shopee.co.th/*",
+        "https://*.shopee.co.id/*",
+        "https://*.shopee.com.my/*",
+        "https://*.shopee.ph/*",
+        "https://*.shopee.sg/*"
+      ],
+      "js": ["markets.js", "fx-core.js", "content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "跨境后台汇率换算",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  }
+}

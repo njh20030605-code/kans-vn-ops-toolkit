@@ -11,14 +11,21 @@
 ![Playwright](https://img.shields.io/badge/Playwright-%E5%8F%AA%E8%AF%BB%E6%89%AB%E6%8F%8F-2EAD33?logo=playwright&logoColor=white)
 ![Feishu](https://img.shields.io/badge/%E9%A3%9E%E4%B9%A6-%E5%BC%80%E6%94%BE%E5%B9%B3%E5%8F%B0-3370FF)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Chrome-lightgrey)
+![Markets](https://img.shields.io/badge/markets-VN%20%C2%B7%20TH%20%C2%B7%20ID%20%C2%B7%20MY%20%C2%B7%20PH%20%C2%B7%20SG-ff6b35)
+[![tests](https://github.com/njh20030605-code/kans-vn-ops-toolkit/actions/workflows/test.yml/badge.svg)](https://github.com/njh20030605-code/kans-vn-ops-toolkit/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 </div>
 
-围绕 **KANS（韩束）越南 TikTok Shop** 日常运营写的一组自动化工具。主 KPI 是本土店「直播间 GMV + 商品卡 GMV」，
+围绕 **TikTok Shop 东南亚店铺**日常运营写的一组自动化工具（在 KANS 韩束越南店实跑，已抽成可配置框架，换国家换店铺只改配置）。主 KPI 是本土店「直播间 GMV + 商品卡 GMV」，
 这里的每个工具都为了把围绕这条 KPI 的重复劳动（导数、盯盘、登记、汇总、发群）交给程序。
 
 > 所有凭证（飞书 App Secret、TikTok 登录态、.env）、业务口径正文、广告计划 ID、同事信息都**不在**仓库里；`sync-from-desktop.sh` 同步时会自动跑 `scrub.sh` 脱敏。见各子项目「首次准备」。
+
+<p align="center">
+  <img src="fx-extension/demo/demo-before.png" width="49%" alt="换算前：六国原始货币"> <img src="fx-extension/demo/demo-after.png" width="49%" alt="换算后：统一成人民币">
+</p>
+<p align="center"><sub>汇率插件：同一个后台页面，装插件前 / 后。观看数这类计数不会被误伤。</sub></p>
 
 ## 给谁用 · 按角色找工具
 
@@ -28,11 +35,11 @@
 | **在 Windows 常开机上值守的同事** | [`roi-monitor-win/`](roi-monitor-win/) | 双击 `.bat` 就能跑的预警程序，结果落桌面 |
 | **达人 BD / 投流码对接** | [`feishu-api/followup-sync.js`](feishu-api/followup-sync.js) · [`feishu-api/投放跟进同步-说明.md`](feishu-api/投放跟进同步-说明.md) | 填了投流码但没人跟的记录自动进工作台，退回原因自动写回你的表 |
 | **直播运营 / 主播管理** | [`host-ranking/`](host-ranking/) | 每天一键出中英越三语主播 GMV 日排名 + 月排名 Excel，直接发群 |
-| **所有要看越南后台的人** | [`vnd-cny-extension/`](vnd-cny-extension/) | TikTok / Shopee 后台的越南盾自动换算成人民币显示 |
+| **所有要看东南亚后台的人** | [`fx-extension/`](fx-extension/) | TikTok Shop / Shopee 六国后台的本地货币自动换算成人民币或美元显示 |
 | **负责人 / 要问数据口径的人** | [`feishu-api/bot.js`](feishu-api/bot.js) · [`feishu-api/kb/`](feishu-api/kb/) | 飞书里 @My Claude 直接问，答案只来自本机 kb 里的权威口径 |
 | **要接手维护的技术同学** | 各子目录 README 的「首次准备」+ 根目录 `sync-from-desktop.sh` | 凭证怎么配、launchd 怎么装、源码怎么同步 |
 
-关键词：TikTok Shop 越南 · GMV Max · 素材预警 · ROI · 飞书开放平台 · 多维表格 · Playwright · 主播排名 · VND CNY 汇率插件
+关键词：TikTok Shop 东南亚（越南 / 泰国 / 印尼 / 马来西亚 / 菲律宾 / 新加坡）· GMV Max · 素材预警 · ROI · 飞书开放平台 · 多维表格 · Playwright · 主播排名 · 汇率换算插件
 
 ## 目录
 
@@ -42,7 +49,7 @@
 | [`roi-monitor/`](roi-monitor/) | GMV Max 高成本低 ROI 素材预警：每小时只读扫描 TikTok 广告后台，命中写 xlsx / 飞书多维表格并推送 | Node.js · Playwright | Mac launchd 常驻 |
 | [`roi-monitor-win/`](roi-monitor-win/) | 同一套扫描内核的 Windows 精简版，放在 24h 常开的电脑上跑，一堆 `.bat` 双击即用 | Node.js · Playwright | Windows 常驻 |
 | [`host-ranking/`](host-ranking/) | 主播排名生成器：读线上 Google 表，合并多个直播间，出中 / 英 / 越三语 Excel 日排名与月排名 | Python · openpyxl · PyInstaller | 桌面 App / exe |
-| [`vnd-cny-extension/`](vnd-cny-extension/) | Chrome / Edge 插件：把 TikTok、Shopee 越南后台里的 VND 金额实时换算成人民币显示 | 浏览器扩展（MV3） | 加载已解压扩展 |
+| [`fx-extension/`](fx-extension/) | Chrome / Edge 插件：把 TikTok Shop / Shopee 越南·泰国·印尼·马来·菲律宾·新加坡后台的金额按实时汇率换算成人民币或美元，按域名自动识别市场 | 浏览器扩展（MV3） | 加载已解压扩展 |
 
 ## 它们之间怎么配合
 
@@ -63,6 +70,21 @@ BD 填投流码   ─▶ 「投放跟进工作台」◀── feishu-api/followu
 - 归因：TikTok 后台 7 天归因 vs TTMS O5A 30 天，两套口径不混用
 - 完整业务口径只放在本机 `kb/`（机器人回答时的权威事实来源）；公开仓库里的 [`feishu-api/kb/`](feishu-api/kb/) 只保留格式说明与示例
 
+## 支持的市场
+
+工具里没有写死「越南」。市场参数集中在一处，换国家改配置即可。
+
+| 市场 | 货币 | 1 元人民币 ≈ | 时区 | TikTok 卖家后台 |
+|---|---|---|---|---|
+| 越南 VN | VND ₫ | 3,891 | UTC+7 | seller-vn.tiktok.com |
+| 泰国 TH | THB ฿ | 4.5 | UTC+7 | seller-th.tiktok.com |
+| 印尼 ID | IDR Rp | 2,250 | UTC+7 | seller-id.tiktok.com |
+| 马来西亚 MY | MYR RM | 0.6 | UTC+8 | seller-my.tiktok.com |
+| 菲律宾 PH | PHP ₱ | 8.0 | UTC+8 | seller-ph.tiktok.com |
+| 新加坡 SG | SGD S$ | 0.18 | UTC+8 | seller-sg.tiktok.com |
+
+汇率是写文档时的参考值，插件实时拉取，其它工具在配置里填。改的地方：ROI 预警 `roi-monitor/config.json` 的 `market` 块（模板见 `roi-monitor/markets.example.json`）、主播排名 `host-ranking/config.json` 的 `currency` 与 `local_lang`、插件 `fx-extension/markets.js`。
+
 ## 10 分钟接入你自己的店铺
 
 所有业务参数都在配置文件里，代码不用改。每个目录都有 `*.example.json` 模板，复制成同名文件填上自己的值即可：
@@ -76,7 +98,7 @@ BD 填投流码   ─▶ 「投放跟进工作台」◀── feishu-api/followu
 | 5 | 实习生日清：实习生名单、店铺、表 ID；用 `create-base.js` 一键建表 | `feishu-api/intern-workflow/config.example.json` → `config.json` |
 | 6 | ROI 预警：阈值、汇率、品牌名（通知标题）、通知通道；监控哪些推广系列 | `roi-monitor/config.json` · `campaigns.example.json` → `campaigns.json` · `.env.example` → `.env` |
 | 7 | 主播排名：Google 表 ID、直播间 tab 关键词、汇率、列索引 | `host-ranking/config.example.json` → `config.json` |
-| 8 | 汇率插件：无需配置，加载即用 | — |
+| 8 | 汇率插件：加载即用；加新国家只改 `markets.js` 一段 | `fx-extension/markets.js` |
 
 跟 KANS 强相关、别人用不上的东西（业务口径知识库正文、培训手册、真实计划 ID）不在仓库里。
 

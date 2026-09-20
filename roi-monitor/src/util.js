@@ -9,7 +9,7 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
  * 用途:Node 进程启动时把代码读进内存,之后换 src 里的文件对运行中的进程无效 ——
  * 光看文件日期不知道"跑着的到底是哪版",所以启动时和 version 命令都会打出来。
  */
-export const VERSION = '2026-09-16b';
+export const VERSION = '2026-09-20a';
 
 /**
  * src 目录下所有 .js 的"指纹"(大小+修改时间)。
@@ -33,7 +33,7 @@ export function srcFingerprint() {
     return ''; // 读不到就当没变,不影响主流程
   }
 }
-export const VERSION_NOTE = '红警卡片按口径分组(当天/近7天)并标日期范围';
+export const VERSION_NOTE = '市场参数化:config.json 新增 market 块(币种/时区/汇率),可换到泰国/印尼/马来/菲律宾/新加坡';
 
 /** 把 "${VAR}" 形式的字符串替换成 process.env.VAR;非字符串或无匹配原样返回。 */
 function expandEnv(value) {
@@ -61,9 +61,97 @@ export function loadJson(relOrAbs) {
 /** 品牌名，用在通知标题里；config.json 的 brand 字段，默认 KANS。 */
 export const BRAND = (() => { try { return loadJson('config.json').brand || 'KANS'; } catch { return 'KANS'; } })();
 
+// ---------- 市场(国家)参数 ----------
+/**
+ * 默认市场 = 越南(KANS 现行值)。config.json 的 market 块可整体换成别国,见 markets.example.json。
+ *   code          两位国家码,决定卖家后台域名 seller-<code>.tiktok.com 和 URL 里的 shop_region
+ *   name          中文名,用在「XX时间」「XX投放日报」这类文案里
+ *   currency      币种代码
+ *   symbols       页面上可能出现的货币符号/缩写,用来判断单元格/表头里的金额是不是本币
+ *   tzOffsetHours 该国相对 UTC 的小时偏移(泰/越/印尼=7,马/菲/新=8)
+ *   rateToCny     1 人民币 = 多少本币(越南盾≈3891)
+ * 可选:
+ *   sellerHost           后台域名,不填按 code 推
+ *   assumeLocalCurrency  单元格/表头都没货币符号时是否直接当本币。不填时:汇率<100 的小面额币种(泰铢/马币等)当本币,
+ *                        大面额币种(越南盾/印尼盾)沿用老规则「数值 >5000 才当本币」
+ */
+export const DEFAULT_MARKET = Object.freeze({
+  code: 'VN',
+  name: '越南',
+  currency: 'VND',
+  symbols: ['₫', 'đ', 'VND'],
+  tzOffsetHours: 7,
+  rateToCny: 3891,
+});
+
+let deprecationHinted = false;
+
+/**
+ * 从一份配置对象里取出规范化的 market 块。
+ *  · 有 market → 缺的字段用默认值补齐
+ *  · 没 market 但有老键 vndToCnyRate / timezoneOffsetHours → 按越南推出来(向后兼容)
+ *  · 都没有 → 默认越南
+ */
+export function normalizeMarket(cfg, { hint = false } = {}) {
+  const c = cfg || {};
+  const m = c.market && typeof c.market === 'object' ? c.market : null;
+  const legacy = !m && (c.vndToCnyRate != null || c.timezoneOffsetHours != null);
+  const out = {
+    ...DEFAULT_MARKET,
+    ...(m || {}),
+    ...(legacy
+      ? {
+          rateToCny: c.vndToCnyRate ?? DEFAULT_MARKET.rateToCny,
+          tzOffsetHours: c.timezoneOffsetHours ?? DEFAULT_MARKET.tzOffsetHours,
+        }
+      : {}),
+  };
+  out.code = String(out.code || DEFAULT_MARKET.code).toUpperCase();
+  out.symbols = Array.isArray(out.symbols) && out.symbols.length ? out.symbols.map(String) : [out.currency];
+  out.tzOffsetHours = Number(out.tzOffsetHours);
+  out.rateToCny = Number(out.rateToCny);
+  if (!Number.isFinite(out.tzOffsetHours)) out.tzOffsetHours = DEFAULT_MARKET.tzOffsetHours;
+  if (!Number.isFinite(out.rateToCny) || out.rateToCny <= 0) out.rateToCny = DEFAULT_MARKET.rateToCny;
+  out.sellerHost = out.sellerHost || `https://seller-${out.code.toLowerCase()}.tiktok.com`;
+  if (out.assumeLocalCurrency == null) out.assumeLocalCurrency = out.rateToCny < 100;
+  if (legacy && hint && !deprecationHinted) {
+    deprecationHinted = true;
+    console.log(
+      `[提示] config.json 里的 vndToCnyRate / timezoneOffsetHours 已改为 market 块(见 markets.example.json),` +
+        `本次按越南 VND 汇率 ${out.rateToCny}、UTC+${out.tzOffsetHours} 继续运行。`
+    );
+  }
+  return out;
+}
+
+/** 当前市场(进程启动时读 config.json 一次;读不到就是越南)。用法同 BRAND。 */
+export const MARKET = (() => {
+  try {
+    return normalizeMarket(loadJson('config.json'));
+  } catch {
+    return normalizeMarket(null);
+  }
+})();
+
+/** 卖家后台域名,例 https://seller-vn.tiktok.com */
+export const SELLER_HOST = MARKET.sellerHost;
+
+/** 从一份 config 对象取 market(已经过 loadConfig 的直接返回;老形状/测试用的裸对象也能算出来)。 */
+export function marketOf(config) {
+  if (config && config.market && config.market.sellerHost) return config.market;
+  return normalizeMarket(config);
+}
+
+/** 把本地整点换算成北京时间整点(北京 = UTC+8)。 */
+export function toBeijingHour(hour, offsetHours = MARKET.tzOffsetHours) {
+  return (((Number(hour) + (8 - offsetHours)) % 24) + 24) % 24;
+}
+
 export function loadConfig() {
   const raw = loadJson('config.json');
-  return deepExpandEnv(raw);
+  const cfg = deepExpandEnv(raw);
+  cfg.market = normalizeMarket(cfg, { hint: true });
+  return cfg;
 }
 
 export function loadCampaigns() {
@@ -85,13 +173,14 @@ export function resolvePath(p) {
   return path.isAbsolute(p) ? p : path.join(ROOT, p);
 }
 
-// ---------- 越南时间 (UTC+7) ----------
-export function vnNow(offsetHours = 7) {
+// ---------- 市场当地时间(默认 MARKET.tzOffsetHours;越南 = UTC+7) ----------
+// 函数名沿用 vn* 前缀以免大面积改动;语义是「市场当地」,不是特指越南。
+export function vnNow(offsetHours = MARKET.tzOffsetHours) {
   return new Date(Date.now() + offsetHours * 3600e3);
 }
 
-/** 越南当天 00:00 对应的真实 epoch(毫秒),用于 URL 的 list_start_date。 */
-export function vnDayRanges(offsetHours = 7) {
+/** 当地当天 00:00 对应的真实 epoch(毫秒),用于 URL 的 list_start_date。 */
+export function vnDayRanges(offsetHours = MARKET.tzOffsetHours) {
   const day = 86400e3;
   const off = offsetHours * 3600e3;
   const todayStart = Math.floor((Date.now() + off) / day) * day - off;
@@ -105,10 +194,10 @@ export function vnDayRanges(offsetHours = 7) {
 }
 
 /**
- * 某一天(相对今天偏移 daysAgo 天)的越南时间区间 + 日期串。
+ * 某一天(相对今天偏移 daysAgo 天)的当地时间区间 + 日期串。
  * daysAgo=1 就是昨天。用于每天早上采集"昨天一整天"的计划合计。
  */
-export function vnDayOf(offsetHours = 7, daysAgo = 1) {
+export function vnDayOf(offsetHours = MARKET.tzOffsetHours, daysAgo = 1) {
   const day = 86400e3;
   const off = offsetHours * 3600e3;
   const todayStart = Math.floor((Date.now() + off) / day) * day - off;
@@ -118,8 +207,8 @@ export function vnDayOf(offsetHours = 7, daysAgo = 1) {
   return { start, end: start + 86399000, key };
 }
 
-/** DT 时间串:例 "7月23日-13.00"。表标题恒等于此串。 */
-export function formatDT(offsetHours = 7) {
+/** DT 时间串(当地时间):例 "7月23日-13.00"。表标题恒等于此串。 */
+export function formatDT(offsetHours = MARKET.tzOffsetHours) {
   const vn = vnNow(offsetHours);
   const M = vn.getUTCMonth() + 1;
   const D = vn.getUTCDate();
@@ -128,8 +217,8 @@ export function formatDT(offsetHours = 7) {
   return `${M}月${D}日-${hh}.${mm}`;
 }
 
-/** 把一个 VN 零点对齐的 epoch 毫秒转成 "YYYY-MM-DD"(用于直播接口的 start_time/end_time)。 */
-export function vnDateStr(epochMs, offsetHours = 7) {
+/** 把一个当地零点对齐的 epoch 毫秒转成 "YYYY-MM-DD"(用于直播接口的 start_time/end_time)。 */
+export function vnDateStr(epochMs, offsetHours = MARKET.tzOffsetHours) {
   const d = new Date(epochMs + offsetHours * 3600e3);
   const y = d.getUTCFullYear();
   const M = String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -137,8 +226,8 @@ export function vnDateStr(epochMs, offsetHours = 7) {
   return `${y}-${M}-${D}`;
 }
 
-/** 越南当天日期键,例 "2026-07-23",用于本地历史库按天归组。 */
-export function vnDateKey(offsetHours = 7) {
+/** 当地当天日期键,例 "2026-07-23",用于本地历史库按天归组。 */
+export function vnDateKey(offsetHours = MARKET.tzOffsetHours) {
   const vn = vnNow(offsetHours);
   const y = vn.getUTCFullYear();
   const M = String(vn.getUTCMonth() + 1).padStart(2, '0');
@@ -147,14 +236,14 @@ export function vnDateKey(offsetHours = 7) {
 }
 
 export function buildDashboardUrl(campaign, start, end) {
-  const base = 'https://seller-vn.tiktok.com/ads-creation/dashboard';
+  const base = `${SELLER_HOST}/ads-creation/dashboard`;
   const params = {
     origin: 'SC_ads_tab_button_PC',
     type: campaign.type || 'product', // 商品广告=product;直播=live
     mpa: '1',
     campaign_id: campaign.campaign_id,
     activated_tab_id: '1',
-    shop_region: 'VN',
+    shop_region: MARKET.code,
     list_start_date: String(start),
     list_end_date: String(end),
   };

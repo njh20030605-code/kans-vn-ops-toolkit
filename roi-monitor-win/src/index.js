@@ -3,7 +3,10 @@ import 'dotenv/config';
 import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadConfig, loadCampaigns, info, warn, error, formatDT, VERSION, VERSION_NOTE, ROOT, BRAND } from './util.js';
+import {
+  loadConfig, loadCampaigns, info, warn, error, formatDT, VERSION, VERSION_NOTE, ROOT,
+  BRAND, MARKET, SELLER_HOST, toBeijingHour, marketOf, normalizeMarket,
+} from './util.js';
 import { launchBrowser, getPage, detectLoginState, hardDeadline } from './browser.js';
 import { classifyPageState } from './classify.js';
 import { runOnce } from './run.js';
@@ -32,7 +35,7 @@ async function cmdLogin(config) {
   const context = await launchBrowser(config);
   const page = await getPage(context);
   info('打开 TikTok 卖家后台,请在弹出的浏览器里手动完成登录…');
-  await page.goto('https://seller-vn.tiktok.com/', { waitUntil: 'domcontentloaded' }).catch(() => {});
+  await page.goto(`${SELLER_HOST}/`, { waitUntil: 'domcontentloaded' }).catch(() => {});
   console.log('\n────────────────────────────────────────────');
   console.log(' 请在浏览器窗口里完成登录(含验证码/二次验证)。');
   console.log(' 登录成功、能看到卖家后台首页后,回到这里按 Enter。');
@@ -89,6 +92,7 @@ async function cmdStart(config, campaigns) {
   console.log('══════════════════════════════════════════════');
   console.log(`  ${BRAND} 预警 · 代码版本 ${VERSION}`);
   console.log(`  ${VERSION_NOTE}`);
+  console.log(`  市场:${MARKET.name}(${MARKET.code})· ${MARKET.currency} 汇率 ${MARKET.rateToCny} · UTC+${MARKET.tzOffsetHours}`);
   console.log('  (换过 src 里的文件后必须重开本窗口才生效)');
   console.log('══════════════════════════════════════════════');
   console.log('');
@@ -98,7 +102,7 @@ async function cmdStart(config, campaigns) {
   // 启动即做一次登录态自检
   const page = await getPage(context);
   await page
-    .goto('https://seller-vn.tiktok.com/', { waitUntil: 'commit', timeout: 45000 })
+    .goto(`${SELLER_HOST}/`, { waitUntil: 'commit', timeout: 45000 })
     .catch(() => {});
   // commit 只等到"服务器回了响应",正文还没渲染 —— 先等出内容再判断,否则必然误判白屏
   await waitForBodyText(page, 20000);
@@ -164,15 +168,15 @@ async function main() {
   const with7d = flags.includes('--with-7d');
 
   if (cmd === 'help' || cmd === '-h' || cmd === '--help') {
-    console.log(`${BRAND} 越南 GMV Max 高成本低ROI 素材预警(只读)
+    console.log(`${BRAND} ${MARKET.name} GMV Max 高成本低ROI 素材预警(只读)
 
 用法:
   node src/index.js login          # 一次性手动登录 TikTok 卖家后台(持久 profile)
   node src/index.js scan           # 立即扫描一次(仅当天口径)
   node src/index.js scan --with-7d # 立即扫描一次(当天 + 近7天)
-  node src/index.js start          # 常驻:每小时扫当天,越南10/14点加扫近7天
+  node src/index.js start          # 常驻:每小时扫当天,${MARKET.name}10/14点加扫近7天
   node src/index.js status         # 查看今天历史命中概况
-  node src/index.js set roi 2.5    # 改阈值:roi=ROI阈值 cost=成本¥ rate=汇率(不带参数=交互式)
+  node src/index.js set roi 2.5    # 改阈值:roi=ROI阈值 cost=成本¥ rate=汇率(${MARKET.currency}→¥)(不带参数=交互式)
   node src/index.js test-notify    # 发一条测试红色预警,验证手机/通知通道是否打通
   node src/index.js version        # 看代码版本(排查"更新了怎么没生效")
   node src/index.js selftest       # 离线自检:验证扫描/排序/时间逻辑(无需登录)
@@ -180,12 +184,13 @@ async function main() {
   node src/index.js feishu-check   # 体检飞书配置:凭据格式对不对、能不能取到 token
   node src/index.js feishu-test    # 测飞书:发一条测试卡片到群 + 写一条测试记录再删掉
   node src/index.js daily off      # 停掉每天的日报推送(红色预警不受影响)
-  node src/index.js daily on 9     # 恢复日报推送,越南时间 9 点
+  node src/index.js daily on 9     # 恢复日报推送,${MARKET.name}时间 9 点
   node src/index.js daily-report   # 手动跑一次:采集昨天各计划合计 → 出日报 → 推群
                                    #   --no-collect 只出报告不重新采集
                                    #   --days-ago=2 改成采集前天
 
-配置:config.json(阈值/汇率/输出/LLM)、campaigns.json(计划清单)、.env(密钥)
+配置:config.json(阈值/market 市场块:币种·时区·汇率/输出/LLM)、campaigns.json(计划清单)、.env(密钥)
+换国家:把 markets.example.json 里对应国家的块复制到 config.json 的 market 字段
 输出:output/<时间串>.xlsx;告警:output/ALERTS.log`);
     return;
   }
@@ -272,11 +277,11 @@ const FEISHU_DEFAULTS = {
   chatId: 'oc_填你的飞书群ID',
   chatName: '越南韩束ROI预警',
   bitable: {
-    appToken: 'AMD3bW73qanEQmsg7mCcfFB6nTd',
+    appToken: '填多维表格appToken',
     tableId: 'tblT9nDZFnVa90qO', // 命中明细
     dailyTableId: 'tblhTnhAwHQVB8ad', // 计划日汇总
   },
-  dailySummaryHour: 9, // 越南时间。9 = 北京时间 10 点;想北京 9 点就填 8
+  dailySummaryHour: 9, // 市场当地时间。越南 9 点 = 北京时间 10 点;想北京 9 点就填 8
 };
 
 async function cmdFeishuSetup() {
@@ -309,15 +314,15 @@ async function cmdFeishuSetup() {
     console.log('   常见原因:粘贴时带了引号/逗号/空格,或者没粘全。');
     console.log('   已经按你输入的存下了,但多半会报 10003。建议重跑一次这个脚本重新粘。\n');
   }
-  const hour = (await ask(`每天几点推日报(越南时间 0-23,当前 ${cfg.feishu.dailySummaryHour ?? 21}),回车=不改: `)).trim();
+  const hour = (await ask(`每天几点推日报(${MARKET.name}时间 0-23,当前 ${cfg.feishu.dailySummaryHour ?? 21}),回车=不改: `)).trim();
   if (hour && !Number.isNaN(Number(hour))) cfg.feishu.dailySummaryHour = Number(hour);
 
   if (cfg.feishu.appId && cfg.feishu.appSecret) {
     cfg.feishu.enabled = true;
     console.log('\n✅ 已开启飞书推送。');
     console.log(`   推送群:${cfg.feishu.chatName || cfg.feishu.chatId}`);
-    console.log(`   底表:https://gvh59x1f62p.feishu.cn/base/${cfg.feishu.bitable?.appToken}`);
-    console.log(`   日报时间:越南时间 ${cfg.feishu.dailySummaryHour ?? 21} 点`);
+    console.log(`   底表:https://你的域名.feishu.cn/base/${cfg.feishu.bitable?.appToken}`);
+    console.log(`   日报时间:${MARKET.name}时间 ${cfg.feishu.dailySummaryHour ?? 21} 点`);
     console.log('\n   下一步:跑「测试飞书.bat」验证一下通不通。');
   } else {
     cfg.feishu.enabled = false;
@@ -350,17 +355,17 @@ async function cmdDailySwitch(flags) {
     cfg.feishu.dailyReportEnabled = true;
     cfg.feishu.dailySummaryHour = hour;
     writeConfigRaw(cfg);
-    console.log(`\n✅ 每日日报已恢复,越南时间 ${hour} 点推(= 北京时间 ${(hour + 1) % 24} 点)。`);
+    console.log(`\n✅ 每日日报已恢复,${MARKET.name}时间 ${hour} 点推(= 北京时间 ${toBeijingHour(hour)} 点)。`);
     console.log('   下一个整点生效,不用重启。');
     return;
   }
 
   const cur = cfg.feishu.dailySummaryHour;
   const on = cfg.feishu.dailyReportEnabled === true && cur != null;
-  console.log('\n当前日报状态:' + (on ? `开启,每天越南时间 ${cur} 点推(= 北京时间 ${(cur + 1) % 24} 点)` : '已停止'));
+  console.log('\n当前日报状态:' + (on ? `开启,每天${MARKET.name}时间 ${cur} 点推(= 北京时间 ${toBeijingHour(cur)} 点)` : '已停止'));
   console.log('\n用法:');
   console.log('  node src/index.js daily off     停止推送');
-  console.log('  node src/index.js daily on 9    恢复,越南时间 9 点');
+  console.log(`  node src/index.js daily on 9    恢复,${MARKET.name}时间 9 点`);
 }
 
 async function cmdFeishuCheck() {
@@ -394,7 +399,7 @@ async function cmdFeishuCheck() {
   console.log(`${f.enabled ? '✅' : '❌'} enabled = ${f.enabled}`);
   console.log(`${f.chatId ? '✅' : '❌'} 推送群 = ${f.chatName || f.chatId || '(未配)'}`);
   console.log(`${f.bitable?.appToken ? '✅' : '❌'} 底表 = ${f.bitable?.appToken || '(未配)'}`);
-  console.log(`   日报时间:越南时间 ${f.dailySummaryHour ?? 9} 点(= 北京时间 ${((f.dailySummaryHour ?? 9) + 1) % 24} 点)`);
+  console.log(`   日报时间:${MARKET.name}时间 ${f.dailySummaryHour ?? 9} 点(= 北京时间 ${toBeijingHour(f.dailySummaryHour ?? 9)} 点)`);
 
   if (!a || !b) {
     console.log('\n👉 凭据格式不对,先重跑「配置飞书.bat」把值重新粘一次。');
@@ -439,8 +444,8 @@ async function cmdFeishuTest(config) {
       '这是一条测试消息,看到它说明**推送通道已打通**。',
       '',
       `推送群:${config.feishu.chatName || config.feishu.chatId}`,
-      `日报时间:越南时间 ${config.feishu.dailySummaryHour ?? 21} 点`,
-      `底表:https://gvh59x1f62p.feishu.cn/base/${config.feishu.bitable?.appToken}`,
+      `日报时间:${MARKET.name}时间 ${config.feishu.dailySummaryHour ?? 21} 点`,
+      `底表:https://你的域名.feishu.cn/base/${config.feishu.bitable?.appToken}`,
     ],
   });
   console.log(r1.ok ? '   ✅ 群消息发送成功' : `   ❌ 失败:${r1.error || '(看上面的日志)'}`);
@@ -450,7 +455,7 @@ async function cmdFeishuTest(config) {
     { workId: 'TEST-可以删掉', acct: '@测试', costCNY: 0, roi: 0, caliber: '当天', campaign: '通道测试', mark: '测试数据' },
   ]);
   console.log(r2.ok ? `   ✅ 写入成功(${r2.count} 条,去底表里可以手动删掉这行)` : `   ❌ 失败:${r2.error}`);
-  console.log(`\n底表地址:https://gvh59x1f62p.feishu.cn/base/${config.feishu.bitable?.appToken}`);
+  console.log(`\n底表地址:https://你的域名.feishu.cn/base/${config.feishu.bitable?.appToken}`);
 }
 
 async function cmdDailyReport(config, campaigns, flags) {
@@ -510,28 +515,60 @@ async function cmdTestNotify(config) {
   console.log('已发送测试通知。请查看手机/日志/output/ALERTS.log。');
 }
 
+/** 按 "a.b.c" 路径读/写嵌套字段(set 命令改 market.rateToCny 用)。 */
+const getPath = (obj, key) => key.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
+const setPath = (obj, key, val) => {
+  const ks = key.split('.');
+  let o = obj;
+  for (const k of ks.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {};
+  o[ks[ks.length - 1]] = val;
+};
+
+/**
+ * 老 config.json 没有 market 块时,就地把 vndToCnyRate / timezoneOffsetHours 迁成 market 块
+ * (只在用户主动改设置时做,平时读配置不写回)。
+ */
+function ensureMarketBlock(cfg) {
+  if (cfg.market && typeof cfg.market === 'object') return false;
+  const m = normalizeMarket(cfg);
+  cfg.market = {
+    code: m.code,
+    name: m.name,
+    currency: m.currency,
+    symbols: m.symbols,
+    tzOffsetHours: m.tzOffsetHours,
+    rateToCny: m.rateToCny,
+  };
+  delete cfg.vndToCnyRate;
+  delete cfg.timezoneOffsetHours;
+  return true;
+}
+
 async function cmdSet(flags) {
   const { readConfigRaw, writeConfigRaw } = await import('./util.js');
   const cfg = readConfigRaw();
-  const alias = { roi: 'roiThreshold', cost: 'costThresholdCNY', rate: 'vndToCnyRate' };
+  const migrated = ensureMarketBlock(cfg);
+  const cur = cfg.market.currency || MARKET.currency;
+  const alias = { roi: 'roiThreshold', cost: 'costThresholdCNY', rate: 'market.rateToCny' };
   const label = {
     roiThreshold: 'ROI 阈值(命中条件:ROI < 此值)',
     costThresholdCNY: '成本阈值 ¥(命中条件:成本 > 此值)',
-    vndToCnyRate: '汇率 VND→¥',
+    'market.rateToCny': `汇率 ${cur}→¥(1 元人民币 = 多少 ${cur})`,
   };
+  const migratedNote = migrated ? '(顺便把旧的 vndToCnyRate / timezoneOffsetHours 迁成了 market 块)' : '';
 
   // 直接形式:set roi 2.5 / set cost 70 / set rate 3891
   if (flags.length >= 2) {
     const key = alias[flags[0]] || flags[0];
     const num = Number(flags[1]);
-    if (!(key in cfg) || Number.isNaN(num)) {
+    if (getPath(cfg, key) === undefined || Number.isNaN(num)) {
       console.log('用法:node src/index.js set roi 2.5  |  set cost 70  |  set rate 3891');
       return;
     }
-    const old = cfg[key];
-    cfg[key] = num;
+    const old = getPath(cfg, key);
+    setPath(cfg, key, num);
     writeConfigRaw(cfg);
-    console.log(`✅ 已修改 ${label[key] || key}:${old} → ${num}(下一轮扫描自动生效,无需重启)`);
+    console.log(`✅ 已修改 ${label[key] || key}:${old} → ${num}(下一轮扫描自动生效,无需重启)${migratedNote}`);
     return;
   }
 
@@ -539,31 +576,33 @@ async function cmdSet(flags) {
   console.log('\n当前阈值设置:');
   console.log(`  1) ${label.roiThreshold}     当前 = ${cfg.roiThreshold}`);
   console.log(`  2) ${label.costThresholdCNY}    当前 = ${cfg.costThresholdCNY}`);
-  console.log(`  3) ${label.vndToCnyRate}                    当前 = ${cfg.vndToCnyRate}`);
+  console.log(`  3) ${label['market.rateToCny']}    当前 = ${cfg.market.rateToCny}`);
   const pick = (await ask('\n要改哪个?输入 1 / 2 / 3(直接回车=不改): ')).trim();
-  const map = { 1: 'roiThreshold', 2: 'costThresholdCNY', 3: 'vndToCnyRate' };
+  const map = { 1: 'roiThreshold', 2: 'costThresholdCNY', 3: 'market.rateToCny' };
   const key = map[pick];
   if (!key) {
-    console.log('未改动。');
+    if (migrated) writeConfigRaw(cfg);
+    console.log('未改动。' + migratedNote);
     return;
   }
-  const nv = (await ask(`输入新的值(当前 ${cfg[key]}): `)).trim();
+  const nv = (await ask(`输入新的值(当前 ${getPath(cfg, key)}): `)).trim();
   const num = Number(nv);
   if (Number.isNaN(num)) {
-    console.log('不是有效数字,未改动。');
+    if (migrated) writeConfigRaw(cfg);
+    console.log('不是有效数字,未改动。' + migratedNote);
     return;
   }
-  const old = cfg[key];
-  cfg[key] = num;
+  const old = getPath(cfg, key);
+  setPath(cfg, key, num);
   writeConfigRaw(cfg);
-  console.log(`\n✅ 已修改 ${label[key]}:${old} → ${num}。`);
+  console.log(`\n✅ 已修改 ${label[key]}:${old} → ${num}。${migratedNote}`);
   console.log('下一轮扫描自动生效(常驻程序每小时读一次配置,无需重启)。');
 }
 
 async function cmdStatus() {
   const { getTodayPrevIds, hasTodayHistory } = await import('./store.js');
   const ids = getTodayPrevIds();
-  console.log(`今天(越南)是否已有历史命中:${hasTodayHistory() ? '是' : '否'}`);
+  console.log(`今天(${MARKET.name})是否已有历史命中:${hasTodayHistory() ? '是' : '否'}`);
   console.log(`今天「当天」口径累计命中过的素材ID数:${ids.size}`);
   console.log(`当前时间串 DT:${formatDT()}`);
 }
@@ -571,7 +610,7 @@ async function cmdStatus() {
 async function cmdDump(config, campaigns) {
   const { launchBrowser, getPage, gotoAndWaitTable } = await import('./browser.js');
   const { buildDashboardUrl, vnDayRanges } = await import('./util.js');
-  const r = vnDayRanges(config.timezoneOffsetHours);
+  const r = vnDayRanges(marketOf(config).tzOffsetHours);
   const c = campaigns[0];
   const url = buildDashboardUrl(c, r.dStart, r.dEnd);
   const context = await launchBrowser(config);

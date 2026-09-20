@@ -4,13 +4,13 @@
     "KANS Globe",
     "One Leaf"
   ],
-  "app_token": "XijobxWUVaaWbtsAJ6ocbg1Kn2g",
-  "table": "tblGYc5IntNPGC8D",
+  "app_token": "填多维表格appToken",
+  "table": "tbl填表ID",
   "notify": {
     "enabled": false,
     "intern_open_id": "",
     "jasper_open_id": "",
-    "base_url": "https://gvh59x1f62p.feishu.cn/base/XijobxWUVaaWbtsAJ6ocbg1Kn2g"
+    "base_url": "https://你的域名.feishu.cn/base/appToken"
   },
   "campaign_shop": {
     "MKT-白精华-White Essence-0708": "KANS Official",

@@ -5,6 +5,20 @@
 
 > 仓库为私有。所有凭证（飞书 App Secret、TikTok 登录态、.env）都**不在**仓库里，见各子项目「首次准备」。
 
+## 给谁用 · 按角色找工具
+
+| 你是 | 直接去 | 解决什么 |
+|---|---|---|
+| **广告 / 投放实习生** | [`roi-monitor/`](roi-monitor/) · [`feishu-api/kans-board`](feishu-api/kans-board/) · [`feishu-api/creative-exclusion`](feishu-api/creative-exclusion/) · [`feishu-api/intern-workflow`](feishu-api/intern-workflow/) | 每小时自动盯低效素材、看板里一键复制素材 ID 回后台排除、登记待排除素材、每天任务清单自动清零 |
+| **在 Windows 常开机上值守的同事** | [`roi-monitor-win/`](roi-monitor-win/) | 双击 `.bat` 就能跑的预警程序，结果落桌面 |
+| **达人 BD / 投流码对接** | [`feishu-api/followup-sync.js`](feishu-api/followup-sync.js) · [`feishu-api/投放跟进同步-说明.md`](feishu-api/投放跟进同步-说明.md) | 填了投流码但没人跟的记录自动进工作台，退回原因自动写回你的表 |
+| **直播运营 / 主播管理** | [`host-ranking/`](host-ranking/) | 每天一键出中英越三语主播 GMV 日排名 + 月排名 Excel，直接发群 |
+| **所有要看越南后台的人** | [`vnd-cny-extension/`](vnd-cny-extension/) | TikTok / Shopee 后台的越南盾自动换算成人民币显示 |
+| **负责人 / 要问数据口径的人** | [`feishu-api/bot.js`](feishu-api/bot.js) · [`feishu-api/kb/`](feishu-api/kb/) | 飞书里 @My Claude 直接问，答案只来自 kb 里的权威口径 |
+| **要接手维护的技术同学** | 各子目录 README 的「首次准备」+ 根目录 `sync-from-desktop.sh` | 凭证怎么配、launchd 怎么装、源码怎么同步 |
+
+关键词：TikTok Shop 越南 · GMV Max · 素材预警 · ROI · 飞书开放平台 · 多维表格 · Playwright · 主播排名 · VND CNY 汇率插件
+
 ## 目录
 
 | 目录 | 一句话 | 技术栈 | 运行方式 |

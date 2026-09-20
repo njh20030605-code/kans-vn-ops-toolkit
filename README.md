@@ -1,5 +1,19 @@
-# KANS 越南运营工具箱 · kans-vn-ops-toolkit
+<div align="center">
 
+# KANS 越南运营工具箱 · KANS Vietnam Ops Toolkit
+
+**围绕 KANS（韩束）越南 TikTok Shop 的自动化工具集：飞书机器人与命令行、GMV Max 低效素材预警、主播三语排名、VND→CNY 浏览器插件。**
+
+中文 | [English](README.en.md)
+
+![Node.js ≥18](https://img.shields.io/badge/Node.js-%E2%89%A518-339933?logo=node.js&logoColor=white)
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-%E5%8F%AA%E8%AF%BB%E6%89%AB%E6%8F%8F-2EAD33?logo=playwright&logoColor=white)
+![Feishu](https://img.shields.io/badge/%E9%A3%9E%E4%B9%A6-%E5%BC%80%E6%94%BE%E5%B9%B3%E5%8F%B0-3370FF)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Chrome-lightgrey)
+![License](https://img.shields.io/badge/license-private-red)
+
+</div>
 围绕 **KANS（韩束）越南 TikTok Shop** 日常运营写的一组自动化工具。主 KPI 是本土店「直播间 GMV + 商品卡 GMV」，
 这里的每个工具都为了把围绕这条 KPI 的重复劳动（导数、盯盘、登记、汇总、发群）交给程序。
 

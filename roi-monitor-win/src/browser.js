@@ -26,10 +26,29 @@ export async function launchBrowser(config) {
   return context;
 }
 
+/**
+ * 拿扫描用的主页面。
+ * 会跳过播报专用页 —— 播报和扫描各用各的页面(各自独立导航,互不打断),
+ * 所以这里不能把播报那个页面当成主页面返回。
+ */
 export async function getPage(context) {
-  const pages = context.pages();
-  if (pages.length > 0) return pages[0];
+  const usable = context.pages().filter((p) => !p.__kansBoardPage && !p.isClosed());
+  if (usable.length > 0) return usable[0];
   return await context.newPage();
+}
+
+/**
+ * 拿播报专用页面(相当于浏览器里另开一个标签页)。
+ * 这样整点的素材扫描和半点的播报可以同时跑,谁也不影响谁 ——
+ * 之前两边共用一个页面,扫描跑得久(最长 25 分钟)时会被播报的导航顶掉。
+ */
+export async function getBoardPage(context) {
+  for (const p of context.pages()) {
+    if (p.__kansBoardPage && !p.isClosed()) return p;
+  }
+  const p = await context.newPage();
+  p.__kansBoardPage = true;
+  return p;
 }
 
 /**
@@ -162,7 +181,7 @@ export function hardDeadline(promise, ms, tag) {
 }
 
 /** 把页面拽回空白页,清掉卡住的导航。失败也不抛。 */
-async function resetToBlank(page) {
+export async function resetToBlank(page) {
   try {
     await hardDeadline(
       page.goto('about:blank', { waitUntil: 'commit', timeout: 8000 }),
@@ -208,11 +227,49 @@ function campaignIdOf(url) {
   }
 }
 
+/** 取 URL 上某个查询参数,取不到返回空串。 */
+function paramOf(url, key) {
+  try {
+    return new URL(url).searchParams.get(key) || '';
+  } catch {
+    return '';
+  }
+}
+
+function pathOf(url) {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * 「虽然 goto 报超时,但其实页面已经到目标页了」—— 只在**确实到了**时才返回 true。
+ *
+ * ★ 2026-09-21 修:原来写的是 `return !want || cur.includes(want)` ——
+ *   素材页 URL 带 campaign_id 所以没问题,但**播报的计划列表页没有 campaign_id**,
+ *   于是 `!want` 恒真 → 只要当前还停在任意一个 /ads-creation 页面就算"已到目标页"。
+ *   实际后果:商品列表先读成功 → 页面停在 type=product → 接着去 type=live 超时 →
+ *   这里谎报成功 → 上层读到的还是**商品表** → tabMismatch → 直播 tab 整个丢掉,
+ *   而且 gotoWithRetry 的 3 次重试因为"成功"了一次都没跑,救都救不回来。
+ *   现在:没有 campaign_id 的,必须**路径一致 + type/日期这几个关键参数一致**才算到了。
+ */
 function alreadyLanded(page, url) {
+  // 页面已经被关掉了(浏览器崩了/被杀进程),page.url() 还会返回关闭前的地址 ——
+  // 这时候绝不能说"已经到目标页了",不然上层会去一个死页面上读表
+  if (page.isClosed?.()) return false;
   const cur = page.url() || '';
   if (!cur.startsWith(`${SELLER_HOST}/ads-creation`)) return false;
   const want = campaignIdOf(url);
-  return !want || cur.includes(want);
+  if (want) return cur.includes(want);
+  if (pathOf(cur) !== pathOf(url)) return false;
+  // 商品/直播是同一个页面靠 type= 切的,这个参数不对就等于还没到
+  for (const k of ['type', 'list_start_date', 'list_end_date']) {
+    const w = paramOf(url, k);
+    if (w && paramOf(cur, k) !== w) return false;
+  }
+  return true;
 }
 
 /**

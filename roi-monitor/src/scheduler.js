@@ -3,9 +3,10 @@ import { runOnce } from './run.js';
 import { loadConfig, loadCampaigns, vnNow, formatDT, info, warn, error, srcFingerprint, VERSION, BRAND, MARKET, SELLER_HOST, marketOf } from './util.js';
 import { notify } from './notify.js';
 import { driveEnabled, uploadStatusNote } from './gdrive.js';
-import { feishuEnabled, sendCard, vnDateOf } from './feishu.js';
+import { feishuEnabled, sendCard, vnDateOf, pushBoardRows } from './feishu.js';
 import { buildDailyReport } from './report.js';
 import { collectDailyTotals } from './daily.js';
+import { fetchCampaignStats, saveSnapshot, readSnapshots, pickBaseline, buildBoardCard, buildBoardRows } from './board.js';
 import { getLastSummaryDate, setLastSummaryDate } from './store.js';
 import { shortErr } from './browser.js';
 
@@ -25,7 +26,8 @@ export function startScheduler(config, campaigns, deps) {
   info('提示:改 config.json 阈值或 campaigns.json 计划后,下一轮自动生效,无需重启。');
 
   const bootFingerprint = srcFingerprint(); // 启动那一刻的代码指纹
-  let running = false;
+  let running = false;      // 素材扫描进行中
+  let boardRunning = false; // 运营播报取数中(只防播报自己叠加;和扫描各用一个页面,不互斥)
   let roundSeq = 0; // 轮次号:看门狗砍掉一轮后,那一轮的残余任务靠它自知作废
   let consecutiveFailures = 0;
   let alerted = false; // 是否已经因为连续失败推过告警(用来决定恢复时要不要报平安)
@@ -51,11 +53,11 @@ export function startScheduler(config, campaigns, deps) {
       warn('上一轮还在跑,跳过本次触发(避免两轮叠在一起)。');
       return;
     }
+    running = true;
     if (!isRetry) {
       retriesThisHour = 0;
       if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     }
-    running = true;
 
     // 热加载最新配置与计划清单
     let freshConfig = config;
@@ -245,6 +247,72 @@ export function startScheduler(config, campaigns, deps) {
     tick().catch((e) => error('调度异常:', shortErr(e)));
   });
 
+  // ---- 运营播报:每半小时一次(整点和半点),口径当天 ----
+  // 和扫描是两条独立的线:播报只读列表页(一次请求拿全部计划),十几秒就完事,
+  // 不会跟每小时那轮素材扫描抢时间。
+  
+  // 整点 + 半点。播报有自己的页面,和整点的素材扫描并行跑也不打架。
+  cron.schedule('0,30 * * * *', () => {
+    runBoard().catch((e) => error('播报异常:', shortErr(e)));
+  });
+
+  async function runBoard() {
+    let cfg = config;
+    try {
+      cfg = loadConfig();
+    } catch {
+      /* 读不到就用启动时的 */
+    }
+    const b = cfg.feishu?.board;
+    if (!b?.enabled || !feishuEnabled(cfg)) return;
+
+    // 设成 60 分钟的话只留 :15 那次
+    const every = b.everyMinutes || 30;
+    if (every >= 60 && new Date().getMinutes() >= 30) return;
+
+    if (boardRunning) {
+      warn('上一轮播报还没跑完,跳过这次。');
+      return;
+    }
+    // 不用等素材扫描 —— 播报有自己的页面,两边各跑各的
+    boardRunning = true;
+    try {
+      // 取数要"商品 + 直播"两边都齐才算成功。不齐就整轮再来一次;还不齐就放弃这轮 ——
+      // 宁可少推一次,也不推残缺的数(残缺的数会被当成"今天没花钱")。
+      let res = null;
+      const ROUNDS = 2;
+      // 取数本身已经很有耐心了(每个 tab 5 分钟预算、最多 5 次),
+      // 所以这里的看门狗不能再按 6 分钟砍 —— 至少给 12 分钟,否则会把正在重试的那轮掐死
+      const roundMs = Math.max(b.timeoutMinutes || 12, 12) * 60000;
+      for (let round = 1; round <= ROUNDS; round++) {
+        res = await withTimeout(fetchCampaignStats(cfg, deps), roundMs, '播报取数超过时限');
+        const complete = res.ok && res.rows.length && !(res.failed || []).length;
+        if (complete) break;
+        warn(
+          `播报第 ${round} 轮取数不全(${(res.failed || []).join('、') || res.reason || '无数据'})` +
+            (round < ROUNDS ? ',90 秒后整轮重试…' : ',本次播报跳过,下个半点再来。')
+        );
+        if (round < ROUNDS) await sleep(90000);
+      }
+      if (!res || !res.ok || !res.rows.length || (res.failed || []).length) return;
+
+      const snaps = readSnapshots(cfg);
+      const base = pickBaseline(snaps, 60);
+      saveSnapshot(res.rows, cfg);
+      // 先写底表(留痕),再推群 —— 推送失败也不影响数据落库
+      await pushBoardRows(cfg, buildBoardRows(cfg, res.rows, base)).catch((e) =>
+        warn('写播报流水异常:', shortErr(e))
+      );
+      const card = buildBoardCard(cfg, res.rows, base, []);
+      const sent = await sendCard(cfg, card);
+      info(sent.ok ? `已推送运营播报(${res.rows.length} 条计划)。` : `播报推送失败:${sent.error}`);
+    } catch (e) {
+      warn('播报这轮失败(不影响扫描):', shortErr(e));
+    } finally {
+      boardRunning = false;
+    }
+  }
+
   // 每 2 分钟看一眼代码有没有被覆盖过,有就自我重启(扫描进行中会跳过,等下次)
   setInterval(maybeSelfRestart, 2 * 60 * 1000).unref?.();
 
@@ -266,6 +334,8 @@ export function failurePolicy({ consecutiveFailures: n, alertAfter = 2, alertRep
     alert: n === alertAfter || (n > alertAfter && (n - alertAfter) % alertRepeatEvery === 0),
   };
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** 给一个 promise 套看门狗。超时后原 promise 仍在后台跑,但它的异常会被吞掉不影响进程。 */
 function withTimeout(promise, ms, label) {

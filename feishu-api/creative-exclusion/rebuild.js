@@ -1,7 +1,7 @@
 const { api } = require('./lib');
 const CFG = require('./config.json');
 const APP = CFG.app_token;
-const OLD = ['tblL2yxqCUxt2n56', 'tblTQE0yyoujpFoX', 'tblLmLLH8w37J2ht'];
+const OLD = ['tbl填表ID', 'tbl填表ID', 'tbl填表ID'];
 const sel = (o, colors) => ({ options: o.map((n, i) => ({ name: n, color: colors ? colors[i] : [1,4,7,10,2,5,0,3,6,8,9,11,12,13,14,15,16,17][i % 18] })) });
 
 const CAMPAIGNS = {

@@ -13,6 +13,7 @@ import { runOnce } from './run.js';
 import { startScheduler } from './scheduler.js';
 import { LlmClient } from './llm.js';
 import { selftest } from './selftest.js';
+import { startLogSync, flushAll } from './logsync.js';
 
 /** data 目录下的文件路径(data 不存在就建)。 */
 function pathJoinData(name) {
@@ -97,6 +98,9 @@ async function cmdStart(config, campaigns) {
   console.log('══════════════════════════════════════════════');
   console.log('');
   info(`常驻启动,代码版本 ${VERSION}`);
+  // 日志同步到飞书多维表格 —— 人不在这台机器旁边也能联网看它卡在哪
+  const ls = startLogSync(config);
+  if (!ls.ok && ls.reason) info(ls.reason);
   const llm = new LlmClient(config.llm);
   let context = await launchBrowser(config);
   // 启动即做一次登录态自检
@@ -178,7 +182,12 @@ async function main() {
   node src/index.js status         # 查看今天历史命中概况
   node src/index.js set roi 2.5    # 改阈值:roi=ROI阈值 cost=成本¥ rate=汇率(${MARKET.currency}→¥)(不带参数=交互式)
   node src/index.js test-notify    # 发一条测试红色预警,验证手机/通知通道是否打通
+  node src/index.js board          # 运营播报:取当天各计划数字并预览(不推送)
+                                   #   --send 推到群;--on/--off 开关自动播报
+                                   #   --dump 诊断:把后台返回整个存下来(数字不对时用)
+  node src/index.js discover       # 自动发现新建的广告计划,写进 campaigns.json
   node src/index.js version        # 看代码版本(排查"更新了怎么没生效")
+  node src/index.js stress         # 暴力测试:让假后台各种抽风,反复捶打取数链路
   node src/index.js selftest       # 离线自检:验证扫描/排序/时间逻辑(无需登录)
   node src/index.js feishu-setup   # 配飞书:粘 appId/appSecret,开启推送
   node src/index.js feishu-check   # 体检飞书配置:凭据格式对不对、能不能取到 token
@@ -195,6 +204,12 @@ async function main() {
     return;
   }
 
+  if (cmd === 'stress') {
+    const { stress } = await import('./stress.js');
+    const n = parseInt((flags.find((f) => /^--rounds=/.test(f)) || '').split('=')[1], 10);
+    await stress(Number.isFinite(n) && n > 0 ? n : 10);
+    return;
+  }
   if (cmd === 'selftest') {
     await selftest();
     return;
@@ -240,6 +255,12 @@ async function main() {
     case 'daily':
       await cmdDailySwitch(flags);
       break;
+    case 'discover':
+      await cmdDiscover(config, campaigns, flags);
+      break;
+    case 'board':
+      await cmdBoard(config, flags);
+      break;
     case 'version':
     case '-v':
     case '--version':
@@ -278,8 +299,8 @@ const FEISHU_DEFAULTS = {
   chatName: '越南韩束ROI预警',
   bitable: {
     appToken: '填多维表格appToken',
-    tableId: 'tblT9nDZFnVa90qO', // 命中明细
-    dailyTableId: 'tblhTnhAwHQVB8ad', // 计划日汇总
+    tableId: 'tbl填表ID', // 命中明细
+    dailyTableId: 'tbl填表ID', // 计划日汇总
   },
   dailySummaryHour: 9, // 市场当地时间。越南 9 点 = 北京时间 10 点;想北京 9 点就填 8
 };
@@ -332,6 +353,212 @@ async function cmdFeishuSetup() {
 }
 
 /** 开关每日日报。off = 不再自动采集也不再推送;红色预警不受影响。 */
+/**
+ * 运营播报。默认只预览不推送 —— 数字口径必须先跟后台核对过再开自动推。
+ */
+async function cmdBoard(config, flags) {
+  const { readConfigRaw, writeConfigRaw } = await import('./util.js');
+
+  if (flags.includes('--on') || flags.includes('--off')) {
+    const cfg = readConfigRaw();
+    cfg.feishu = cfg.feishu || {};
+    cfg.feishu.board = cfg.feishu.board || {};
+    const on = flags.includes('--on');
+    cfg.feishu.board.enabled = on;
+    if (on && !cfg.feishu.board.everyMinutes) cfg.feishu.board.everyMinutes = 30;
+    writeConfigRaw(cfg);
+    console.log(on
+      ? `\n✅ 已开启自动播报,每 ${cfg.feishu.board.everyMinutes} 分钟一次,推到群「${cfg.feishu.chatName || cfg.feishu.chatId}」。\n   下一轮自动生效,不用重启。`
+      : '\n✅ 已关闭自动播报(手动 board 预览仍可用)。');
+    return;
+  }
+
+  const { fetchCampaignStats, saveSnapshot, readSnapshots, pickBaseline, buildBoardCard, buildBoardRows, totals } =
+    await import('./board.js');
+  const { launchBrowser } = await import('./browser.js');
+  const fsm = await import('node:fs');
+  const pathm = await import('node:path');
+  const { ROOT } = await import('./util.js');
+
+  const diag = flags.includes('--dump') || flags.includes('--diag');
+  console.log('\n==== 运营播报 · 取数 ====\n');
+  console.log(diag ? '诊断模式:会把后台返回的所有数据抓下来存文件。\n' : '正在打开广告计划列表页(十几秒)…\n');
+  startLogSync(config);
+  let context = await launchBrowser(config);
+  let res;
+  try {
+    res = await fetchCampaignStats(config, { getContext: () => context }, { diag });
+  } finally {
+    await context.close().catch(() => {});
+    await flushAll(config).catch(() => {});
+  }
+
+  if (!res.ok) {
+    console.log(`❌ 没跑成:${res.reason || '取数失败,原因见上面的日志'}`);
+    console.log('   多半是登录掉了 —— 先双击「启动-登录.bat」重登一次。');
+    return;
+  }
+  if (!res.rows.length) {
+    console.log('❌ 一条数字都没抓到。');
+    console.log('   多半是登录掉了 —— 先双击「启动-登录.bat」重登一次。');
+    console.log('   还不行就双击「播报-诊断.bat」,把 logs 里生成的文件发给 Claude。');
+    return;
+  }
+  if (res.failed?.length) {
+    console.log(`\n⚠️ 有 tab 没取到:${res.failed.map((k) => (k === 'live' ? '直播间' : '商品卡')).join('、')}`);
+    console.log('   这次不会存快照(避免污染"近1小时"的基准),下次播报会重试。\n');
+  }
+  for (const n of res.notes || []) console.log(`   · ${n}`);
+
+  const t = totals(res.rows);
+  const tp = totals(res.rows.filter((x) => x.kind === 'product'));
+  const tl = totals(res.rows.filter((x) => x.kind === 'live'));
+  console.log(`抓到 ${res.rows.length} 条计划(商品 ${res.rows.filter((x) => x.kind === 'product').length} / 直播 ${res.rows.filter((x) => x.kind === 'live').length})`);
+  console.log('⚠️ 请对着后台核一遍再开自动推送:\n');
+  console.log(`   全部 GMV Max   消耗 ¥${Math.round(t.cost)}   成交 ¥${Math.round(t.gmv)}   ROI ${t.roi}`);
+  console.log(`   商品卡         消耗 ¥${Math.round(tp.cost)}   成交 ¥${Math.round(tp.gmv)}   ROI ${tp.roi}`);
+  console.log(`   直播间         消耗 ¥${Math.round(tl.cost)}   成交 ¥${Math.round(tl.gmv)}   ROI ${tl.roi}\n`);
+  for (const kind of ['product', 'live']) {
+    const arr = res.rows.filter((x) => x.kind === kind).sort((a, b) => b.costCNY - a.costCNY);
+    if (!arr.length) continue;
+    console.log(`   —— ${kind === 'product' ? '商品卡' : '直播间'} ——`);
+    for (const r of arr) {
+      console.log(`   ${r.name}${r.status ? ` [${r.status}]` : ''}`);
+      console.log(`      消耗 ¥${Math.round(r.costCNY)}   成交 ¥${Math.round(r.gmvCNY)}   ROI ${r.roi}`);
+    }
+  }
+
+  // 成交全是 0 → 多半是字段名没对上,给出下一步怎么办
+  const allZeroGmv = res.rows.length > 0 && res.rows.every((r) => !r.gmvCNY);
+  if (allZeroGmv || diag) {
+    console.log('\n──────── 诊断 ────────');
+    if (allZeroGmv) console.log('⚠️ 成交(GMV)全是 0 —— 后台这个字段叫什么名,我这边猜错了。\n');
+    for (const d of res.debug || []) {
+      console.log(`【${d.kind === 'live' ? '直播' : '商品'} tab】页面表格:`);
+      if (!d.table) {
+        console.log('  这个 tab 压根没找到表格(多半没加载出来)');
+      } else {
+        console.log('  表头:' + JSON.stringify(d.table.head));
+        (d.table.rows || []).forEach((r, i) => console.log(`  第${i + 1}行:` + JSON.stringify(r)));
+      }
+      console.log('');
+    }
+    if (!(res.debug || []).length) console.log('(没有可用的诊断信息 —— 页面可能完全没打开)');
+    if (diag) {
+      const f = pathm.default.join(ROOT, 'logs', `board-dump-${Date.now()}.json`);
+      fsm.default.mkdirSync(pathm.default.dirname(f), { recursive: true });
+      fsm.default.writeFileSync(
+        f,
+        JSON.stringify({ failed: res.failed, notes: res.notes, debug: res.debug, rows: res.rows }, null, 2)
+      );
+      console.log(`完整数据已存到:${f}`);
+      console.log('把这个文件发给 Claude,我照着把字段名改对。');
+    } else {
+      console.log('下一步:双击「播报-诊断.bat」,它会把完整返回存成文件,发给 Claude 就能修。');
+    }
+    console.log('──────────────────────\n');
+  }
+
+  const snaps = readSnapshots(config);
+  const base = pickBaseline(snaps, 60);
+  if (!res.failed?.length) {
+    saveSnapshot(res.rows, config);
+    console.log(`\n已存快照(今天累计 ${snaps.length + 1} 份)${base ? ',可以算近1小时增量' : ',还没有1小时前的快照,近1小时先不算'}`);
+  } else {
+    console.log('\n取数不全,这次不存快照(存了会让下一轮的"近1小时"虚高)。');
+  }
+
+  const card = buildBoardCard(config, res.rows, base, res.failed || []);
+  console.log('\n---- 推出去会长这样 ----');
+  console.log(card.title);
+  console.log(card.lines.join('\n').replace(/<font color='\w+'>(.*?)<\/font>/g, '$1').replace(/\*\*/g, ''));
+  console.log('------------------------\n');
+
+  if (flags.includes('--send')) {
+    const { feishuEnabled, sendCard, pushBoardRows } = await import('./feishu.js');
+    if (!feishuEnabled(config)) {
+      console.log('⚠️ 飞书没配好,推不了。');
+      return;
+    }
+    if (res.failed?.length) {
+      console.log('⛔ 取数不全(缺 ' + res.failed.map((k) => (k === 'live' ? '直播间' : '商品卡')).join('、') + '),不推。');
+      console.log('   正式运行时也是这个规矩:取全了才推,取不全整轮重试,再不行就跳过这个半点。');
+      return;
+    }
+    const w = await pushBoardRows(config, buildBoardRows(config, res.rows, base));
+    console.log(w.ok ? `✅ 已写入底表 ${w.count} 行` : w.skipped ? '(底表没配,跳过)' : `⚠️ 写底表失败:${w.error}`);
+    const r = await sendCard(config, card);
+    console.log(r.ok ? '✅ 已推送到群' : `❌ 推送失败:${r.error}`);
+  } else {
+    console.log('(只是预览,没推送。想推到群加 --send;确认数字对了之后用 --on 开自动播报)');
+  }
+}
+
+/** 自动发现广告计划并追加进 campaigns.json。 */
+async function cmdDiscover(config, campaigns, flags) {
+  const { discoverCampaigns, mergeCampaigns, campaignsPath, backupCampaigns } = await import('./discover.js');
+  const { launchBrowser } = await import('./browser.js');
+  const fsmod = await import('node:fs');
+
+  console.log('\n==== 自动发现广告计划 ====\n');
+  console.log(`现有 ${campaigns.length} 条:`);
+  campaigns.forEach((c) => console.log(`   · ${c.name}`));
+  console.log('\n正在打开后台的广告计划列表页(要十几秒)…\n');
+
+  let context = await launchBrowser(config);
+  let res;
+  try {
+    res = await discoverCampaigns(config, { getContext: () => context });
+  } finally {
+    await context.close().catch(() => {});
+  }
+
+  if (!res.ok) {
+    console.log(`❌ 没跑成:${res.reason}`);
+    console.log('   多半是登录掉了 —— 先双击「启动-登录.bat」重登一次再试。');
+    return;
+  }
+
+  if (!res.found.length) {
+    console.log('❌ 一条都没抓到。');
+    console.log('   抓到的接口有这些,把下面这段发给 Claude 就能定位:');
+    res.endpoints.slice(0, 40).forEach((u) => console.log('     ' + u));
+    console.log('\n   或者你手动加:点进那条计划,把浏览器地址栏的 URL 发给 Claude 就行。');
+    return;
+  }
+
+  console.log(`后台一共发现 ${res.found.length} 条计划:\n`);
+  const have = new Set(campaigns.map((c) => String(c.campaign_id)));
+  res.found.forEach((f) => {
+    const isNew = !have.has(f.campaign_id);
+    console.log(`   ${isNew ? '🆕' : '  '} ${f.name}`);
+    console.log(`        campaign_id=${f.campaign_id}${f.product_id ? `  product_id=${f.product_id}` : '  (无商品ID → 按直播计划处理)'}`);
+  });
+
+  const { merged, added } = mergeCampaigns(campaigns, res.found);
+  if (!added.length) {
+    console.log('\n✅ 没有新计划,campaigns.json 不用改。');
+    return;
+  }
+
+  console.log(`\n新增 ${added.length} 条:`);
+  added.forEach((a) => console.log(`   🆕 ${a.name}${a.type === 'live' ? ' (直播)' : ''}`));
+
+  if (!flags.includes('--yes')) {
+    const ans = (await ask('\n把这些加进 campaigns.json?(直接回车=加,n=不加): ')).toLowerCase();
+    if (ans !== '' && ans !== 'y') {
+      console.log('没改。');
+      return;
+    }
+  }
+
+  const bak = backupCampaigns();
+  fsmod.default.writeFileSync(campaignsPath(), JSON.stringify(merged, null, 2) + '\n', 'utf8');
+  console.log(`\n✅ 已写入 campaigns.json(现在共 ${merged.length} 条)`);
+  if (bak) console.log(`   旧的备份成了:${bak.split(/[\\/]/).pop()}`);
+  console.log('   下一轮扫描自动生效,不用重启(计划清单是每轮重读的)。');
+}
+
 async function cmdDailySwitch(flags) {
   const { readConfigRaw, writeConfigRaw } = await import('./util.js');
   const cfg = readConfigRaw();

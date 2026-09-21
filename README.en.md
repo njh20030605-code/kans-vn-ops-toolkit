@@ -41,8 +41,8 @@
 | Directory | What it is | Stack | Runs as |
 |---|---|---|---|
 | [`feishu-api/`](feishu-api/) | Feishu Open Platform CLI + the "My Claude" Feishu bot + 4 resident sync jobs (creative exclusion table, ad follow-up workbench, intern daily board, low-ROI dashboard) | Node.js · Lark SDK · Claude | launchd |
-| [`roi-monitor/`](roi-monitor/) | GMV Max high-cost / low-ROI creative monitor: hourly **read-only** scan of TikTok Ads, hits go to xlsx / Feishu Bitable + push notifications | Node.js · Playwright | macOS launchd |
-| [`roi-monitor-win/`](roi-monitor-win/) | Windows build of the same scanner, trimmed for an always-on PC | Node.js · Playwright | Windows |
+| [`roi-monitor/`](roi-monitor/) | GMV Max high-cost / low-ROI creative monitor: hourly **read-only** scan of TikTok Ads, hits go to xlsx / Feishu Bitable + push notifications. Also a half-hourly ops digest (per-campaign spend / revenue / ROI for the day, plus a last-hour delta), auto-discovery of new campaigns, and run logs mirrored to Bitable | Node.js · Playwright | macOS launchd |
+| [`roi-monitor-win/`](roi-monitor-win/) | Windows build of the same scanner, trimmed for an always-on PC; `.bat` files for the digest, campaign discovery and a chaos test | Node.js · Playwright | Windows |
 | [`host-ranking/`](host-ranking/) | Host ranking generator: reads a published Google Sheet, merges several livestream rooms, outputs trilingual Excel | Python · openpyxl · PyInstaller | Desktop app / exe |
 | [`fx-extension/`](fx-extension/) | Chrome / Edge MV3 extension converting VND / THB / IDR / MYR / PHP / SGD to CNY or USD on TikTok Shop & Shopee seller pages, market auto-detected by domain | Browser extension | Load unpacked |
 
@@ -50,6 +50,7 @@
 
 ```
 TikTok Ads ──(roi-monitor, hourly, read-only)──▶ Feishu Bitable "hit log"
+           └─(campaign list, every 30 min)────▶ Feishu group "ops digest" card + Bitable "run log"
                                                        │
                    feishu-api/kans-board every 15 min ─▶ "Today / Last 7 days" dashboards (creative IDs paste straight back into TikTok's bulk filter)
                                                        │

@@ -9,7 +9,7 @@ RS() { rsync -a --delete "${X[@]}" "$@"; }
 
 RS --exclude 'intern-manual/*.docx' "$D/feishu-api/" "$R/feishu-api/"
 RS --exclude data --exclude output "$P/kans-roi-monitor/" "$R/roi-monitor/"
-RS "$P/kans-roi-monitor-win/" "$R/roi-monitor-win/"
+RS --exclude data --exclude output "$P/kans-roi-monitor-win/" "$R/roi-monitor-win/"
 RS --exclude '*.exe' --exclude .github --exclude dist --exclude build --exclude '*.spec' "$P/KANS主播排名报表/主播排名项目/KANS主播排名程序/" "$R/host-ranking/"
 RS "$P/TikTok-Shopee-汇率插件-v2.0-多国/" "$R/fx-extension/"
 cd "$R" && git status --short

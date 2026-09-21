@@ -1,7 +1,7 @@
 # 素材排除表 · Creative Exclusion（极简版，2026-09-15 重建）
 
 Base: https://你的域名.feishu.cn/base/填多维表格appToken
-app_token 填多维表格appToken · table tblGYc5IntNPGC8D（唯一一张表）
+app_token 填多维表格appToken · table tbl填表ID（唯一一张表）
 
 ## 8 列（英文表头，注释中英双语）
 Creative ID | Shop | Campaign · KANS Official / · KANS Globe / · One Leaf（三列单选，各店视图只露自己那列，下拉只含本店计划）| Campaign（公式合成，给 Jasper 看）| Why(3选1) | Jasper: Exclude?(Yes/No) | Jasper Notice | Intern: Done(勾) | ⚠ Robot(机器人写) + Submitted(自动)

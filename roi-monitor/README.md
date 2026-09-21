@@ -39,6 +39,10 @@ npx playwright install chromium   # 装浏览器内核(已装过可跳过)
 | 常驻自动扫(每小时) | `启动-常驻扫描.command` | `npm run start` |
 | 看今天命中概况 | — | `npm run status` |
 | 离线自检(不用登录) | — | `npm run selftest` |
+| 运营播报·先预览不推群 | — | `node src/index.js board` |
+| 运营播报·开/关每半小时自动 | — | `node src/index.js board --on` / `--off` |
+| 自动发现新建的广告计划 | — | `node src/index.js discover` |
+| 暴力测试(假后台,不用登录) | — | `node src/index.js stress` |
 
 - **输出**:`output/<时间串>.xlsx`,例 `output/7月23日-14.00.xlsx`;**同时自动上传到 Google Drive**(见第五节)
 - **无命中**:不写表,只在日志/通知里记一行 `✅ …无高成本低ROI素材`
@@ -91,6 +95,30 @@ launchctl unload ~/Library/LaunchAgents/com.kans.roimonitor.plist
 
 ---
 
+## 三之二、运营播报(每半小时)
+
+素材预警回答「哪条素材在烧钱」,播报回答「今天整体怎么样」。
+
+- 数字来自**广告计划列表页接口返回的计划级官方数字**,不是把素材逐行加总 —— 素材层合计和后台的计划级数字对不上,日报数字不准就是栽在这
+- 每张卡片两栏:当天累计 + 近 1 小时(两次快照相减;快照按市场当地日期分组,跨天不相减)
+- 商品计划和直播计划是**两张分开的列表**,列顺序也不同,各读一次再合并
+- **取全才推**:商品和直播都齐了才推群 / 写表 / 存快照;不齐隔 90 秒整轮重来,还不齐这个半点就不推
+- 先 `board` 预览核对数字,确认无误再 `board --on`
+
+相关配置在 `config.json` 的 `feishu.board`:`enabled`(开关) / `everyMinutes`(默认 30) / `timeoutMinutes`(看门狗)。
+
+### 自动发现计划
+
+推广系列 ID 会随日期后缀轮换。`discover` 拦截列表页自己的 JSON 接口把 `campaign_id` / `product_id` 抓出来,问一句再并进 `campaigns.json`(不扒 DOM —— 列表页的按钮多是 JS 驱动的,`href` 里未必有 id)。
+
+### 暴力测试
+
+`stress` 会起一个**故意抽风**的假后台:永不响应 / 前两次不响应 / 晚几秒渲染 / 行一条条往外冒 / 返回另一张表 / 有表没行 / 服务器报错 / 页面被关掉。商品与直播各随机抽一种,反复捶打取数链路。
+
+验收只认一条铁律:**要么完整正确,要么明确失败** —— 绝不串台、绝不少行、绝不拿 0 冒充。不用登录,不碰真实数据,约 6 分钟。
+
+---
+
 ## 四、配置项(`config.json`)
 
 - `costThresholdCNY` / `roiThreshold`:命中阈值(¥70 / ROI<2)
@@ -101,6 +129,8 @@ launchctl unload ~/Library/LaunchAgents/com.kans.roimonitor.plist
 - `output.mode`:`local`(默认,本地文件);Google Sheets 需另接凭据
 - `llm.enabled`:是否启用 LLM 兜底(默认 `false`,纯规则跑通);启用需在 `.env` 填 `LLM_API_KEY`
 - `notify.channels`:`log` / `file` / `feishu` / `telegram`(飞书、TG 需在 `.env` 填 webhook/token)
+- `feishu.board`:运营播报开关与节奏(`enabled` / `everyMinutes` / `timeoutMinutes`)
+- `feishu.bitable.boardTableId`:播报明细回写的数据表;运行日志另有一张「运行日志」表
 
 **计划清单**在 `campaigns.json`——计划 ID 会随日期后缀轮换,上新计划时在这里增删。
 

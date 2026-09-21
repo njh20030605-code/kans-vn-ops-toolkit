@@ -183,6 +183,81 @@ async function readRecordsRaw(config, tableId, dateKey) {
   }
 }
 
+/**
+ * 把一次播报的三层数字写进「投放播报流水」底表。
+ * 每次播报写 3 + N 行(全部 / 商品卡 / 直播间 / 每个计划一行),追加不覆盖 ——
+ * 这样能按时间拉曲线,也能按层级透视。
+ */
+export async function pushBoardRows(config, boardRows) {
+  const f = cfgOf(config);
+  const tid = f.bitable?.boardTableId;
+  if (!feishuEnabled(config) || !f.bitable?.appToken || !tid) return { ok: false, skipped: true };
+  if (!boardRows?.length) return { ok: true, count: 0 };
+  const now = Date.now();
+  const dateKey = vnDateOf(config);
+  const stamp = new Date(now + (config.timezoneOffsetHours ?? 7) * 3600e3).toISOString().slice(11, 16);
+  try {
+    const records = boardRows.map((r) => ({
+      fields: {
+        键: `${dateKey} ${stamp}|${r.level}|${r.name}`,
+        时间: now,
+        日期: dateKey,
+        层级: r.level,
+        名称: String(r.name || ''),
+        状态: String(r.status || ''),
+        '消耗¥': r.costCNY ?? 0,
+        '成交¥': r.gmvCNY ?? 0,
+        ROI: r.roi ?? 0,
+        ...(r.h1cost == null
+          ? {}
+          : { '近1小时消耗¥': r.h1cost, '近1小时成交¥': r.h1gmv, '近1小时ROI': r.h1roi }),
+      },
+    }));
+    for (let i = 0; i < records.length; i += 200) {
+      await api(
+        config,
+        'POST',
+        `/open-apis/bitable/v1/apps/${f.bitable.appToken}/tables/${tid}/records/batch_create`,
+        { records: records.slice(i, i + 200) }
+      );
+    }
+    info(`已写入飞书「投放播报流水」${records.length} 行`);
+    return { ok: true, count: records.length };
+  } catch (e) {
+    warn('写播报流水失败(不影响推送):', e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+/**
+ * 把运行日志/报错写进多维表格「运行日志」表 —— 这样人不在这台 Windows 机器旁边
+ * 也能联网看到它到底卡在哪一步。写失败只记一句,绝不影响主流程。
+ * 表在预警同一个 base 里,默认 tbl填表ID(config.feishu.bitable.logTableId 可覆盖)。
+ */
+export async function pushLogRows(config, entries) {
+  const f = cfgOf(config);
+  const tid = f.bitable?.logTableId || 'tbl填表ID';
+  if (!feishuEnabled(config) || !f.bitable?.appToken || !entries?.length) {
+    return { ok: false, skipped: true };
+  }
+  const records = entries.slice(0, 200).map((e) => ({
+    fields: {
+      时间: String(e.at || ''),
+      级别: e.level === 'ERROR' ? 'ERROR' : e.level === 'WARN' ? 'WARN' : 'INFO',
+      内容: String(e.text || '').slice(0, 1000),
+      机器: String(e.host || ''),
+      版本: String(e.version || ''),
+    },
+  }));
+  await api(
+    config,
+    'POST',
+    `/open-apis/bitable/v1/apps/${f.bitable.appToken}/tables/${tid}/records/batch_create`,
+    { records }
+  );
+  return { ok: true, count: records.length };
+}
+
 /** 读「计划日汇总」某天的数据。 */
 export async function readDailyTotals(config, dateKey) {
   return await readTableByDate(config, cfgOf(config).bitable?.dailyTableId, dateKey);

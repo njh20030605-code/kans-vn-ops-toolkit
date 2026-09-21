@@ -7,10 +7,10 @@
 
 多维表格 `填多维表格appToken`（原表新加的两张表，底表没动）：
 
-- **看板·当天** `tblfk2fh6kGSrkGL`
-  https://你的域名.feishu.cn/base/填多维表格appToken?table=tblfk2fh6kGSrkGL&view=vewkNdJZqw
-- **看板·近7天** `tblX8gL4MsUu7XP6`
-  https://你的域名.feishu.cn/base/填多维表格appToken?table=tblX8gL4MsUu7XP6&view=vewv4pU4ba
+- **看板·当天** `tbl填表ID`
+  https://你的域名.feishu.cn/base/填多维表格appToken?table=tbl填表ID&view=vewkNdJZqw
+- **看板·近7天** `tbl填表ID`
+  https://你的域名.feishu.cn/base/填多维表格appToken?table=tbl填表ID&view=vewv4pU4ba
 
 排序固定：日期新→旧，同一天【全部计划】置顶，其余按低效成本从高到低。
 

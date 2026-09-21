@@ -9,7 +9,7 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
  * 用途:Node 进程启动时把代码读进内存,之后换 src 里的文件对运行中的进程无效 ——
  * 光看文件日期不知道"跑着的到底是哪版",所以启动时和 version 命令都会打出来。
  */
-export const VERSION = '2026-09-20a';
+export const VERSION = '2026-09-21i';
 
 /**
  * src 目录下所有 .js 的"指纹"(大小+修改时间)。
@@ -33,7 +33,7 @@ export function srcFingerprint() {
     return ''; // 读不到就当没变,不影响主流程
   }
 }
-export const VERSION_NOTE = '市场参数化:config.json 新增 market 块(币种/时区/汇率),可换到泰国/印尼/马来/菲律宾/新加坡';
+export const VERSION_NOTE = '修直播tab丢数根因(超时被谎报成"已到目标页");取不到就歇一会儿再要(每tab5分钟耐心);日志报错回传飞书「运行日志」表';
 
 /** 把 "${VAR}" 形式的字符串替换成 process.env.VAR;非字符串或无匹配原样返回。 */
 function expandEnv(value) {
@@ -264,11 +264,26 @@ export function jitter(min, max) {
 // ---------- 日志 ----------
 const LOG_DIR = path.join(ROOT, 'logs');
 
+// 日志旁路:注册进来的函数会收到每一行日志(用来回传飞书)。
+// 这里只负责"喊一声",发不发、怎么发都在 logsync.js —— util 不认识飞书,免得循环引用。
+const logSinks = [];
+export function onLog(fn) {
+  if (typeof fn === 'function') logSinks.push(fn);
+}
+
 export function log(level, ...args) {
   const ts = new Date().toISOString();
   const line = `[${ts}] [${level}] ${args
     .map((a) => (typeof a === 'string' ? a : JSON.stringify(a)))
     .join(' ')}`;
+  const text = args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+  for (const fn of logSinks) {
+    try {
+      fn({ level, text, ts });
+    } catch {
+      /* 旁路挂了绝不能影响打日志本身 */
+    }
+  }
   // 控制台
   (level === 'ERROR' ? console.error : console.log)(line);
   // 落盘(按天)

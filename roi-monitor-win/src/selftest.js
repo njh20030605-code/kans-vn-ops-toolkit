@@ -6,12 +6,15 @@ import { chromium } from 'playwright';
 import { scanCurrentTable, peekTopRows, diagColumns, scanTotals } from './scan.js';
 import { buildColRe, pageWorker } from './columns.js';
 import { markAndSort } from './output.js';
-import { gotoWithRetry, gotoAndWaitTable, setLiveInterception } from './browser.js';
+import { gotoWithRetry, gotoAndWaitTable, setLiveInterception, getPage, getBoardPage } from './browser.js';
 import { vnDayRanges, buildDashboardUrl, formatDT } from './util.js';
 import { launchBrowser } from './browser.js';
 import { runOnce } from './run.js';
+import { fetchCampaignStats } from './board.js';
 import { failurePolicy } from './scheduler.js';
 import { buildRedAlertCard } from './report.js';
+import { extractCampaigns, mergeCampaigns } from './discover.js';
+import { readCampaignTable, pickBaseline, buildBoardCard, buildBoardRows, totals, saveSnapshot, readSnapshots } from './board.js';
 
 /** 没装 Playwright 自带的 Chromium 时,退回用本机 Chrome/Edge,自检照样能跑。 */
 async function launchAny() {
@@ -263,6 +266,29 @@ export async function selftest() {
     hang.close();
     slow.close();
 
+    // 扫描和播报必须各用各的页面 —— 共用一个的话,扫描跑得久时会被播报的导航顶掉
+    console.log('\n[9.5] 扫描页 / 播报页 互不打扰');
+    const ctx2 = await browser.newContext();
+    try {
+      const scanPage = await getPage(ctx2);
+      const boardPage = await getBoardPage(ctx2);
+      check('播报页和扫描页不是同一个', scanPage !== boardPage);
+      check('上下文里确实有两个页面', ctx2.pages().length === 2);
+      check('getPage 不会把播报页当主页面返回', (await getPage(ctx2)) === scanPage);
+      check('getBoardPage 复用同一个播报页,不会越开越多', (await getBoardPage(ctx2)) === boardPage && ctx2.pages().length === 2);
+      // 两边同时导航,各自落在各自的地址上
+      await Promise.all([
+        scanPage.setContent('<h1 id=t>SCAN</h1>'),
+        boardPage.setContent('<h1 id=t>BOARD</h1>'),
+      ]);
+      check('并发设置内容后,扫描页没被顶掉', (await scanPage.textContent('#t')) === 'SCAN');
+      check('并发设置内容后,播报页也没被顶掉', (await boardPage.textContent('#t')) === 'BOARD');
+      await boardPage.setContent('<h1 id=t>BOARD2</h1>');
+      check('播报页再次导航不影响扫描页', (await scanPage.textContent('#t')) === 'SCAN');
+    } finally {
+      await ctx2.close().catch(() => {});
+    }
+
     // 按需拦截:直播口径要改写接口日期;商品口径必须关掉拦截,否则 HTTP 缓存被禁、每次重下几 MB JS
     console.log('\n[10] 请求拦截按需开关(改写直播日期 + 不误伤缓存)');
     let bodies = [];
@@ -375,6 +401,101 @@ export async function selftest() {
       <tbody><tr><td>C1</td><td>@a</td><td>1,000</td><td>2,000</td></tr></tbody></table></body></html>`);
     const tn = await scanTotals(page, { vndToCnyRate: 3891 });
     check('列认不出时明确失败(不会拿 0 冒充)', tn.ok === false && tn.reason === 'no_cost_col');
+
+    // 运营播报读的是「广告计划列表」那张表。下面的列名和数值是 2026-09-21
+    // 从真实后台抄下来的,重点验证那一堆近似列名不会被误匹配。
+    console.log('\n[11.3] 播报 · 读计划列表表格(中英文真实结构 + 认表 + 翻页)');
+
+    // 以下列名全部是 2026-09-21 从真实后台抄的(中文版/英文版各一份)
+    const PH_ZH = ['开/关','广告计划名称','状态','广告计划预算','健康状态与洞察','权益','成本','总收入','优惠券成本','ROI 保护','有效升级功能','排期时间','创意作品加热预算','目标 ROI','净成本','SKU 订单数','平均下单成本','ROI','优惠券带来的收入','跨广告位优惠券总收入'];
+    const PH_EN = ['On/Off','Campaign name','Status','Campaign budget','Health and insights','Offers','Cost','Gross revenue','Coupon cost','ROI protection','Active upgrades','Schedule time','Creative boost budget','Target ROI','Net Cost','SKU orders','Cost per order','ROI','Revenue from coupons','Cross-placement coupon gross revenue'];
+    const LH_ZH = ['开/关','广告计划名称','状态','日预算','健康状态与洞察','权益','成本','可用的 TikTok 账号','ROI 保护','有效升级功能','排期时间','目标 ROI','最大投放量预算','总预算','净成本','优惠券成本','总收入','优惠券带来的收入','跨广告位优惠券总收入','ROI','SKU 订单数','平均下单成本','直播播放量','目标 ROI 成本','基本目标 ROI 成效','受众加热预算','受众加热成本','创意作品加热预算','创意作品加热成本'];
+    const LH_EN = ['On/Off','Campaign name','Status','Target ROI budget','Health and insights','Offers','Cost','Available TikTok accounts','ROI protection','Active upgrades','Schedule time','Target ROI','Max delivery budget','Total budget','Net Cost','Coupon cost','Gross revenue','Revenue from coupons','Cross-placement coupon gross revenue','ROI','SKU orders','Cost per order','LIVE views','Target ROI cost','Base target ROI result','Viewer boost budget','Viewer boost cost','Creative boost budget','Creative boost cost'];
+
+    const mkT = (heads, rows, extra = '') =>
+      `<table><thead><tr>${heads.map((h) => `<th>${h}</th>`).join('')}</tr></thead>` +
+      `<tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>${extra}`;
+    // 商品 20 列:成本=6 总收入=7 目标ROI=13 净成本=14 ROI=17
+    const pRow = (n, cost, gmv, roi) => ['on', `<div>${n}</div><div><a>数据分析</a></div>`, '已生效',
+      '606,000,000 VND', '良好', '-', cost, gmv, '0 VND', '符合资格', '-', '2026-09-16', '-', '3.20',
+      '17,956,410 VND', '2,682', '69,732 VND', roi, '0 VND', '0 VND'];
+    // 直播 29 列:成本=6 总预算=13 净成本=14 总收入=16 ROI=19
+    const lRow = (n, cost, gmv, roi) => ['on', `<div>${n}</div><div><a>数据分析</a></div>`, '已生效',
+      '200,000,000 VND', '良好', '-', cost, 'KANS SKINCARE VIETNAM', '符合资格', '-', '2026-07-08', '5.30',
+      '-', '200,000,000 VND', '3,857,772 VND', '0 VND', gmv, '0 VND', '0 VND', roi, '775', '28,732 VND',
+      '16,490', '22,267,631 VND', '5.35', '0 VND', '0 VND', '0 VND', '0 VND'];
+
+    for (const [lang, ph, lh] of [['中文', PH_ZH, LH_ZH], ['英文', PH_EN, LH_EN]]) {
+      await page.setContent(`<html><body>${mkT(ph, [
+        pRow('MKT-377次抛-377 Serum-0916', '187,021,290 VND', '527,536,078 VND', '2.82'),
+        pRow('MKT-白精华-White Essence-0708', '28,929,879 VND', '102,384,304 VND', '3.54'),
+      ])}</body></html>`);
+      const pr = await page.evaluate(readCampaignTable, { expect: 'product' });
+      check(`[${lang}] 商品表读到 2 行`, pr.rows && pr.rows.length === 2);
+      check(`[${lang}] 认出这是商品 tab`, pr.sawKind === 'product' && !pr.tabMismatch);
+      const a = pr.rows && pr.rows[0];
+      check(`[${lang}] 计划名只取第一行,不带「数据分析」`, a && a.name === 'MKT-377次抛-377 Serum-0916');
+      check(`[${lang}] 成本取「成本」187,021,290,不是净成本 17,956,410`, a && a.cost.num === 187021290);
+      check(`[${lang}] 总收入取「总收入」527,536,078,不是优惠券收入`, a && a.revenue.num === 527536078);
+      check(`[${lang}] ROI 取 2.82,不是「目标 ROI」3.20`, a && a.roi.num === 2.82);
+      check(`[${lang}] 币种识别 VND`, a && a.cost.currency === 'VND');
+
+      await page.setContent(`<html><body>${mkT(lh, [
+        lRow('KANS SKINCARE VIETNAM 0708', '22,267,631 VND', '119,160,272 VND', '5.35'),
+      ])}</body></html>`);
+      const lr = await page.evaluate(readCampaignTable, { expect: 'live' });
+      check(`[${lang}] 直播表读到 1 行(列顺序和商品完全不同)`, lr.rows && lr.rows.length === 1);
+      check(`[${lang}] 认出这是直播 tab`, lr.sawKind === 'live' && !lr.tabMismatch);
+      check(`[${lang}] 直播总收入取 119,160,272,没被「总预算」200,000,000 带偏`, lr.rows && lr.rows[0].revenue.num === 119160272);
+      check(`[${lang}] 直播 ROI 5.35,不是目标 ROI 5.30`, lr.rows && lr.rows[0].roi.num === 5.35);
+
+      // ★ 要商品却停在直播 tab —— 必须报错,不能把直播数据当商品上报
+      const wrong = await page.evaluate(readCampaignTable, { expect: 'product' });
+      check(`[${lang}] ★ 要商品却读到直播表 → 报 tabMismatch,不会混数据`, wrong.tabMismatch === true && wrong.sawKind === 'live');
+
+      // ★★ 这次翻车的原因:特征列没渲染出来时,绝不能一口咬定"那就是另一种表"
+      // 只留最基本的几列(既没有直播特征列、也没有商品特征列)
+      const barebone = mkT(['广告计划名称', '状态', '成本', '总收入', 'ROI'],
+        [['某计划', '已生效', '1,000,000 VND', '3,000,000 VND', '3.00']]);
+      await page.setContent(`<html><body>${barebone}</body></html>`);
+      const amb1 = await page.evaluate(readCampaignTable, { expect: 'live' });
+      check(`[${lang}] ★★ 认不出是哪张表时要「放行」,不能判直播失败`, !amb1.tabMismatch && amb1.rows.length === 1);
+      const amb2 = await page.evaluate(readCampaignTable, { expect: 'product' });
+      check(`[${lang}] ★★ 同一张表要商品也放行(拿不准就别丢数据)`, !amb2.tabMismatch && amb2.rows.length === 1);
+    }
+
+    // ★ 翻页:后台每页固定 10 条(URL 参数改不动),第 11 条起必须靠点「下一页」
+    const pg1 = Array.from({ length: 10 }, (_, i) => pRow(`计划${i + 1}`, '1,000,000 VND', '3,000,000 VND', '3.00'));
+    const pg2 = [pRow('计划11', '2,000,000 VND', '6,000,000 VND', '3.00')];
+    await page.setContent(`<html><body><div id=host>${mkT(PH_ZH, pg1)}</div>
+      <ul class="core-pagination"><li class="core-pagination-item-next" id=nx>下一页</li></ul>
+      <script>document.getElementById('nx').addEventListener('click', function () {
+        document.getElementById('host').innerHTML = ${JSON.stringify(mkT(PH_ZH, pg2))};
+        document.getElementById('nx').className = 'core-pagination-item-next disabled';
+      });</script></body></html>`);
+    const paged = await page.evaluate(readCampaignTable, { expect: 'product' });
+    check(`★ 翻页:10+1 条全读到(实际 ${paged.rows && paged.rows.length})`, paged.rows && paged.rows.length === 11);
+    check('★ 翻页:第 11 条确实拿到了', paged.rows && paged.rows.some((r) => r.name === '计划11'));
+    check('★ 翻页:翻了 2 页', paged.pages === 2);
+    check('★ 翻页:没有重复计数', paged.rows && new Set(paged.rows.map((r) => r.name)).size === 11);
+
+    await page.setContent(`<html><body>${mkT(PH_ZH, pg2)}</body></html>`);
+    const single = await page.evaluate(readCampaignTable, { expect: 'product' });
+    check('只有一页时 pages=1,不会空转', single.pages === 1 && single.rows.length === 1);
+
+    // 币种:有人 Chrome 装了汇率插件会把数字变成 ¥,也要认
+    await page.setContent(`<html><body>${mkT(['广告计划名称','状态','成本','总收入','ROI'],
+      [['某计划', '已生效', '¥66,082', '¥237,004', '3.59']])}</body></html>`);
+    const cny = await page.evaluate(readCampaignTable, { expect: 'product' });
+    check('人民币显示时币种识别为 CNY', cny.rows[0].cost.currency === 'CNY');
+    check('人民币数值原样 66082', cny.rows[0].cost.num === 66082);
+
+    await page.setContent(`<html><body>${mkT(['广告计划名称','状态','成本','总收入','ROI'],
+      [['无币种', '已生效', '28,929,879', '102,384,304', '3.54']])}</body></html>`);
+    const bare = await page.evaluate(readCampaignTable, { expect: 'product' });
+    check('没有币种标记时 currency 为空', bare.rows[0].cost.currency === '');
+
+
   } catch (e) {
     check(`浏览器扫描无异常(${e.message})`, false);
   } finally {
@@ -446,11 +567,294 @@ export async function selftest() {
   );
   check('当天组排在近7天组前面', ctext.indexOf('【当天】') < ctext.indexOf('【近7天】'));
 
+  // 4.8) 自动发现广告计划:从接口返回里挖 id,并安全合并进 campaigns.json
+  console.log('\n[11.8] 自动发现广告计划(解析 + 合并)');
+  const fakeResp = [
+    {
+      url: 'https://seller-vn.tiktok.com/api/v1/ads/campaign/list',
+      body: {
+        code: 0,
+        data: {
+          campaign_list: [
+            { campaign_id: '1880000000000009', campaign_name: 'MKT-白精华-White Essence-0708', product_id: '1740000000000000009', budget: 51600 },
+            { campaign_id: '1880000000000001', campaign_name: 'MKT-377次抛-377 Serum-0916', product_id: '1740000000000000001' },
+            { campaign_id: '1880000000000002', campaign_name: 'MKT-红面霜-Red Cream-0803', product_id: '1740000000000000002' },
+            { campaign_id: '1880000000000008', campaign_name: 'KANS SKINCARE VIETNAM 0708' },
+          ],
+          page_info: { total: 4, page: 1 },
+        },
+      },
+    },
+    // 另一个接口只给了部分字段,不该覆盖掉已有的完整信息
+    { url: 'https://seller-vn.tiktok.com/api/v1/ads/overview', body: { data: { items: [{ campaign_id: '1880000000000001', name: 'MKT-377次抛-377 Serum-0916' }] } } },
+    // 干扰项:id 太短、不像计划ID,不该被当成计划
+    { url: 'https://x/api/other', body: { data: [{ campaign_id: '123', campaign_name: '噪音' }] } },
+  ];
+  const got = extractCampaigns(fakeResp);
+  check(`从接口返回里挖出 4 条(实际 ${got.length})`, got.length === 4);
+  check('短 id 的噪音没被当成计划', !got.some((g) => g.campaign_id === '123'));
+  const s377 = got.find((g) => g.campaign_id === '1880000000000001');
+  check('377次抛 的 product_id 没被第二个接口冲掉', s377 && s377.product_id === '1740000000000000001');
+  const live = got.find((g) => g.campaign_id === '1880000000000008');
+  check('没有 product_id 的那条,product_id 为空', live && live.product_id === '');
+
+  const existing = [
+    { name: 'MKT-白精华-0708', campaign_id: '1880000000000009', product_id: '1740000000000000009' },
+    { name: 'KANS SKINCARE VIETNAM 0708(直播)', campaign_id: '1880000000000008', type: 'live' },
+  ];
+  const { merged, added } = mergeCampaigns(existing, got);
+  check(`只新增 2 条(实际 ${added.length})`, added.length === 2);
+  check('合并后共 4 条', merged.length === 4);
+  check('已有的计划名字没被后台名覆盖', merged[0].name === 'MKT-白精华-0708');
+  check('已有的 type:live 没被弄丢', merged[1].type === 'live');
+  check('新增的商品计划带 product_id', added.every((a) => a.product_id || a.type === 'live'));
+  const again = mergeCampaigns(merged, got);
+  check('再跑一次不会重复添加(幂等)', again.added.length === 0);
+
+  // 4.9) 运营播报:按真实后台表格结构读数
+  // 下面这张表是 2026-09-21 从真实后台抄下来的列名和数值(商品 GMV Max 那张),
+  // 重点是那一堆容易误匹配的近似列名必须避开。
+  const boardCfg = { vndToCnyRate: 3891, roiThreshold: 2, timezoneOffsetHours: 7 };
+  console.log('\n[11.9] 运营播报 · 卡片与近1小时增量');
+  // 卡片 + 近1小时增量(这部分不依赖浏览器)
+  const st = [
+    { campaign_id: 'A', name: 'MKT-白精华-0708', kind: 'product', costCNY: 2000, gmvCNY: 6000, roi: 3 },
+    { campaign_id: 'B', name: 'MKT-377次抛-0916', kind: 'product', costCNY: 1000, gmvCNY: 1000, roi: 1 },
+    { campaign_id: 'C', name: 'MKT-红面霜-0803', kind: 'product', costCNY: 0, gmvCNY: 0, roi: 0 },
+  ];
+  const tt = totals(st);
+  check(`合计消耗 ¥3000(实际 ${Math.round(tt.cost)})`, Math.round(tt.cost) === 3000);
+  check(`合计 ROI = 7000/3000 = 2.33(实际 ${tt.roi})`, tt.roi === 2.33);
+
+  const nowTs = Date.now();
+  const snapOk = { ts: nowTs - 60 * 60000, date: 'x', rows: [
+    { id: 'A', n: 'A', c: 1500, g: 4000 }, { id: 'B', n: 'B', c: 900, g: 700 },
+  ] };
+  const snapTooOld = { ts: nowTs - 5 * 60 * 60000, date: 'x', rows: [] };
+  check('能挑到约1小时前的快照', pickBaseline([snapTooOld, snapOk], 60) === snapOk);
+  check('只有很久以前的快照时不硬凑', pickBaseline([snapTooOld], 60) === null);
+  check('一份快照都没有时返回 null', pickBaseline([], 60) === null);
+
+  const bcard = buildBoardCard(boardCfg, st, snapOk);
+  const btext = bcard.lines.join('\n').replace(/<font color='\w+'>(.*?)<\/font>/g, '$1').replace(/\*\*/g, '');
+  check('卡片有「当天累计」', btext.includes('当天累计'));
+  check('当天累计消耗 ¥3,000', btext.includes('消耗 ¥3,000'));
+  check('近1小时消耗 = ¥600', btext.includes('消耗 ¥600'));
+  check('近1小时成交 = ¥2,300', btext.includes('成交 ¥2,300'));
+  check('近1小时 ROI = 3.83', btext.includes('ROI 3.83'));
+  check('没有基准快照时明说"数据还没攒够"', buildBoardCard(boardCfg, st, null).lines.join('\n').includes('还没攒够'));
+  const backwards = buildBoardCard(boardCfg, st, { ts: nowTs - 60 * 60000, date: 'x', rows: [{ id: 'A', n: 'A', c: 2500, g: 7000 }] }).lines.join('\n');
+  check('累计倒退时增量按 0 算,不出负数', !/消耗 ¥-/.test(backwards) && !/成交 ¥-/.test(backwards));
+
+  // 三层结构:全部 / 商品卡 / 直播间 / 单条计划,而且 0 消耗的计划也要列出来
+  const mixed = [
+    { campaign_id: 'P1', name: 'MKT-377次抛-0916', kind: 'product', status: '已生效', costCNY: 51221, gmvCNY: 144045, roi: 2.81 },
+    { campaign_id: 'P2', name: 'MKT-白精华-0708', kind: 'product', status: '已生效', costCNY: 7719, gmvCNY: 28007, roi: 3.63 },
+    { campaign_id: 'P3', name: 'MKT-闪充棒-0916', kind: 'product', status: '已暂停', costCNY: 0, gmvCNY: 0, roi: 0 },
+    { campaign_id: 'L1', name: 'KANS SKINCARE VIETNAM 0708', kind: 'live', status: '已生效', costCNY: 5950, gmvCNY: 32321, roi: 5.43 },
+    { campaign_id: 'L2', name: 'Kans Official Vietnam-0811', kind: 'live', status: '未投放', costCNY: 0, gmvCNY: 231, roi: 0 },
+  ];
+  const mBase = { ts: Date.now() - 60 * 60000, date: 'x', rows: [
+    { id: 'P1', n: '', c: 45000, g: 130000 }, { id: 'P2', n: '', c: 7000, g: 25000 },
+    { id: 'L1', n: '', c: 5000, g: 28000 },
+  ] };
+  const mCard = buildBoardCard(boardCfg, mixed, mBase);
+  const mText = mCard.lines.join('\n').replace(/<font color='\w+'>(.*?)<\/font>/g, '$1').replace(/\*+/g, '');
+  check('卡片有「全部 GMV Max」汇总', mText.includes('全部 GMV Max'));
+  check('卡片有「商品卡 GMV Max」汇总', mText.includes('商品卡 GMV Max'));
+  check('卡片有「直播间 GMV Max」汇总', mText.includes('直播间 GMV Max'));
+  check('顺序是 全部 → 商品卡 → 直播间',
+    mText.indexOf('全部 GMV Max') < mText.indexOf('商品卡 GMV Max') &&
+    mText.indexOf('商品卡 GMV Max') < mText.indexOf('直播间 GMV Max'));
+  // 商品卡合计 51221+7719=58940;直播合计 5950
+  check(`商品卡合计消耗 ¥58,940(实际文本含)`, mText.includes('¥58,940'));
+  check(`直播间合计消耗 ¥5,950`, mText.includes('¥5,950'));
+  check(`全部合计消耗 ¥64,890`, mText.includes('¥64,890'));
+  check('★ 0 消耗的计划也要列出来(以前会被过滤掉)', mText.includes('MKT-闪充棒-0916') && mText.includes('今天没有消耗'));
+  check('未投放但有成交的直播计划也列出来', mText.includes('Kans Official Vietnam-0811'));
+  check('明细里 5 条计划一条不少',
+    ['MKT-377次抛-0916','MKT-白精华-0708','MKT-闪充棒-0916','KANS SKINCARE VIETNAM 0708','Kans Official Vietnam-0811']
+      .every((n) => mText.includes(n)));
+
+  const bRows = buildBoardRows(boardCfg, mixed, mBase);
+  check(`底表行数 = 3 层汇总 + 5 条计划 = 8(实际 ${bRows.length})`, bRows.length === 8);
+  check('前三行层级依次是 全部/商品卡/直播间',
+    bRows[0].level === '全部' && bRows[1].level === '商品卡' && bRows[2].level === '直播间');
+  check('其余行层级都是「计划」', bRows.slice(3).every((r) => r.level === '计划'));
+  check(`全部层消耗 64890(实际 ${bRows[0].costCNY})`, bRows[0].costCNY === 64890);
+  check(`商品卡层消耗 58940(实际 ${bRows[1].costCNY})`, bRows[1].costCNY === 58940);
+  check('计划行带上状态(已暂停/未投放)', bRows.some((r) => r.status === '已暂停') && bRows.some((r) => r.status === '未投放'));
+  // 近1小时:商品卡 (51221-45000)+(7719-7000)=6940
+  check(`商品卡近1小时消耗 6940(实际 ${bRows[1].h1cost})`, bRows[1].h1cost === 6940);
+  const noBaseRows = buildBoardRows(boardCfg, mixed, null);
+  check('没有基准快照时,近1小时字段留空而不是写 0', noBaseRows[0].h1cost === null);
+
+  // ★ 某个 tab 取数失败时,绝不能显示成 ¥0(那会被当成"今天没花钱")
+  const failCard = buildBoardCard(boardCfg, mixed.filter((r) => r.kind === 'product'), null, ['live']);
+  const failText = failCard.lines.join('\n').replace(/<font color='\w+'>(.*?)<\/font>/g, '$1').replace(/\*+/g, '');
+  check('直播取数失败时明说「取数失败」,不显示 ¥0', /直播间 GMV Max[\s\S]{0,60}取数失败/.test(failText));
+  check('失败时不会出现"直播间 当天累计 消耗 ¥0"这种误导',
+    !/直播间 GMV Max[\s\S]{0,80}当天累计　消耗 \*?\*?¥0/.test(failText));
+  check('全部汇总旁边会提示"不含直播间"', failText.includes('这次没取到'));
+  // 新版 config 把汇率搬进了 market 块,卡片脚注不能再直接读老键,否则印出「₫/undefined」
+  const noteCard = buildBoardCard({ roiThreshold: 2, timezoneOffsetHours: 7 }, st, null, []);
+  check('★ 卡片脚注的汇率不会是 undefined', !noteCard.lines.join('\n').includes('undefined'));
+  check('商品卡那一层照常显示', /商品卡 GMV Max[\s\S]{0,80}当天累计/.test(failText));
+
+  const prevDD = process.env.KANS_DATA_DIR;
+  const tmpDD = fs.mkdtempSync(path.join(os.tmpdir(), 'kans-board-'));
+  process.env.KANS_DATA_DIR = tmpDD;
+  saveSnapshot(st, boardCfg);
+  check('快照能存能读回', readSnapshots(boardCfg).length === 1);
+  if (prevDD === undefined) delete process.env.KANS_DATA_DIR;
+  else process.env.KANS_DATA_DIR = prevDD;
+  fs.rmSync(tmpDD, { recursive: true, force: true });
+
+  // 4.9) 日志回传飞书:只测"哪些要传 / 没配飞书会不会闹",不真连网
+  console.log('\n[13.5] 运行日志回传飞书');
+  {
+    const ls = await import('./logsync.js');
+    check('WARN 一定上传', ls.shouldUpload('WARN', '直播计划列表取数失败'));
+    check('ERROR 一定上传', ls.shouldUpload('ERROR', '崩了'));
+    check('关键 INFO 上传(读到几条)', ls.shouldUpload('INFO', '直播计划读到 3 条'));
+    check('关键 INFO 上传(开工收工)', ls.shouldUpload('INFO', '===== 本轮 9月21日-18.30 开始 ====='));
+    check('关键 INFO 上传(歇一会儿再要)', ls.shouldUpload('INFO', '直播:页面打不开,歇 20 秒再要一次(第2/5次)…'));
+    check('★ 普通 INFO 不上传(别把表刷爆)', !ls.shouldUpload('INFO', '已关闭请求拦截(让浏览器 HTTP 缓存生效)'));
+    ls._resetForTest();
+    const off = ls.startLogSync({ feishu: { enabled: false } });
+    check('★ 飞书没配时安静跳过,不影响程序', off.ok === false && !!off.reason);
+    ls._resetForTest();
+  }
+
   // 5) 端到端:拿假后台完整跑一轮 runOnce(最能挡住"改一处坏一片")
+  await boardPipelineTests();
   await integrationTests();
 
   console.log(`\n== 自检结果:${passed} 通过 / ${failed} 失败 ==\n`);
   if (failed > 0) process.exitCode = 1;
+}
+
+// ---------------- 端到端:播报取数链路 ----------------
+
+/**
+ * 用假后台把 fetchCampaignStats 整条链路跑一遍:
+ * 导航 → 等表格 → 认表(防商品/直播串台)→ 翻页(每页10条的坑)→ VND换算。
+ * 单独测 readCampaignTable 是不够的 —— 串台和翻页只有整条跑才验得出来。
+ */
+async function boardPipelineTests() {
+  console.log('\n[14] 端到端:播报取数链路(认表 / 翻页 / 换算 / 半边失败)');
+  const PH = ['开/关','广告计划名称','状态','广告计划预算','健康状态与洞察','权益','成本','总收入','优惠券成本','ROI 保护','有效升级功能','排期时间','创意作品加热预算','目标 ROI','净成本','SKU 订单数','平均下单成本','ROI','优惠券带来的收入','跨广告位优惠券总收入'];
+  const LH = ['开/关','广告计划名称','状态','日预算','健康状态与洞察','权益','成本','可用的 TikTok 账号','ROI 保护','有效升级功能','排期时间','目标 ROI','最大投放量预算','总预算','净成本','优惠券成本','总收入','优惠券带来的收入','跨广告位优惠券总收入','ROI','SKU 订单数','平均下单成本','直播播放量','目标 ROI 成本','基本目标 ROI 成效','受众加热预算','受众加热成本','创意作品加热预算','创意作品加热成本'];
+  const T = (h, rows, extra = '') =>
+    `<table><thead><tr>${h.map((x) => `<th>${x}</th>`).join('')}</tr></thead>` +
+    `<tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>${extra}`;
+  const pR = (n, c, g, roi) => ['on', `<div>${n}</div><div><a>数据分析</a></div>`, '已生效', '606,000,000 VND', '良好', '-', c, g, '0 VND', '符合', '-', '2026-09-16', '-', '3.20', '17,956,410 VND', '2,682', '69,732 VND', roi, '0 VND', '0 VND'];
+  const lR = (n, c, g, roi) => ['on', `<div>${n}</div><div><a>数据分析</a></div>`, '已生效', '200,000,000 VND', '良好', '-', c, 'ACC', '符合', '-', '2026-07-08', '5.30', '-', '200,000,000 VND', '3,857,772 VND', '0 VND', g, '0 VND', '0 VND', roi, '775', '28,732 VND', '16,490', '22,267,631 VND', '5.35', '0 VND', '0 VND', '0 VND', '0 VND'];
+
+  const cfg = {
+    vndToCnyRate: 3891, roiThreshold: 2, timezoneOffsetHours: 7,
+    // 自检里把"耐心"调小(真实默认是 5 分钟预算 / 歇 20 秒),否则一条用例就要跑几分钟
+    browser: { headless: true, navTimeoutMs: 8000, gotoRetries: 1, waitUntil: 'commit',
+               boardTableTimeoutMs: 8000, boardTabBudgetMs: 40000, boardTabTries: 3, boardRetryWaitMs: 800,
+               minRandomDelayMs: 1, maxRandomDelayMs: 2, blockHeavyResources: false },
+  };
+
+  const scenario = async (title, handler, assertFn) => {
+    let browser = null;
+    try {
+      browser = await launchAny();
+      const ctx = await browser.newContext();
+      await ctx.route('https://seller-vn.tiktok.com/**', handler);
+      const res = await fetchCampaignStats(cfg, { context: ctx });
+      await assertFn(res);
+      await ctx.close();
+    } catch (e) {
+      check(`${title}(${e.message.split('\n')[0]})`, false);
+    } finally {
+      if (browser) await browser.close().catch(() => {});
+    }
+  };
+
+  await scenario('正常取数', async (route) => {
+    const live = /type=live/.test(route.request().url());
+    const body = live
+      ? `<html><body>${T(LH, [lR('直播A', '22,267,631 VND', '119,160,272 VND', '5.35'), lR('直播B', '16,089,887 VND', '79,124,158 VND', '4.92')])}</body></html>`
+      : `<html><body><div id=h>${T(PH, Array.from({ length: 10 }, (_, i) => pR('商品' + (i + 1), '1,000,000 VND', '3,000,000 VND', '3.00')))}</div>
+         <ul><li class="core-pagination-item-next" id=nx>下一页</li></ul>
+         <script>document.getElementById('nx').addEventListener('click',function(){
+           document.getElementById('h').innerHTML=${JSON.stringify(T(PH, [pR('商品11', '2,000,000 VND', '6,000,000 VND', '3.00')]))};
+           this.className='core-pagination-item-next disabled';});</script></body></html>`;
+    await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body });
+  }, (res) => {
+    check('取数成功且没有失败的 tab', res.ok === true && (res.failed || []).length === 0);
+    check(`商品11条+直播2条 = 13(实际 ${res.rows.length})`, res.rows.length === 13);
+    const p = res.rows.filter((r) => r.kind === 'product');
+    check('★ 翻页拿到了第 11 条', p.length === 11 && p.some((r) => r.name === '商品11'));
+    check('直播 2 条,kind 没串', res.rows.filter((r) => r.kind === 'live').length === 2);
+    const a = p.find((r) => r.name === '商品1');
+    check(`VND→¥ 换算对(1,000,000/3891=257,实际 ${Math.round(a.costCNY)})`, Math.round(a.costCNY) === 257);
+    const lv = res.rows.find((r) => r.name === '直播A');
+    check(`直播总收入取对(实际 ¥${Math.round(lv.gmvCNY)})`, Math.round(lv.gmvCNY) === 30625);
+  });
+
+  await scenario('商品打不开', async (route) => {
+    if (!/type=live/.test(route.request().url())) return; // 商品:永不响应
+    await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8',
+      body: `<html><body>${T(LH, [lR('直播A', '22,267,631 VND', '119,160,272 VND', '5.35')])}</body></html>` });
+  }, (res) => {
+    check('商品打不开时标记为失败', (res.failed || []).includes('product'));
+    check('★ 商品一条都不给(绝不拿 0 冒充)', res.rows.filter((r) => r.kind === 'product').length === 0);
+    check('直播照常取到,半边数据仍可用', res.rows.filter((r) => r.kind === 'live').length === 1);
+  });
+
+  // ★★ 2026-09-21 线上故障回归:商品先读成功 → 页面停在 type=product →
+  // 去 type=live 超时 → 旧代码的 alreadyLanded 因为列表页没有 campaign_id 就谎报"已到目标页",
+  // 于是读到的还是商品表 → tabMismatch → 直播 tab 整个丢掉,而且重试一次都没跑。
+  // 正确表现:识破没到目标页 → 重试 → 第二次就拿到直播数据。
+  let liveHits = 0;
+  await scenario('★★ 直播第一次超时,重试要能救回来(不能谎报已到目标页)', async (route) => {
+    const isLive = /type=live/.test(route.request().url());
+    if (isLive && ++liveHits === 1) return; // 第一次:永不响应,制造导航超时
+    const body = isLive
+      ? `<html><body>${T(LH, [lR('直播A', '22,267,631 VND', '119,160,272 VND', '5.35'), lR('直播B', '16,089,887 VND', '79,124,158 VND', '4.92')])}</body></html>`
+      : `<html><body>${T(PH, [pR('商品1', '1,000,000 VND', '3,000,000 VND', '3.00')])}</body></html>`;
+    await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body });
+  }, (res) => {
+    check('★★ 直播超时后重试成功,没有丢 tab', (res.failed || []).length === 0);
+    check(`★★ 直播 2 条都拿到了(实际 ${res.rows.filter((r) => r.kind === 'live').length} 条)`,
+      res.rows.filter((r) => r.kind === 'live').length === 2);
+    check('★★ 绝不把商品表当成直播上报', !res.rows.some((r) => r.kind === 'live' && r.name.startsWith('商品')));
+    check('商品那边照常', res.rows.filter((r) => r.kind === 'product').length === 1);
+  });
+
+  // ★★ 真实后台实测:行是一条一条冒出来的。只要看到 1 行就读,直播 3 条会只读到 1 条 ——
+  // 数字悄悄少一截,比取不到更坑。所以要等行数稳住再读。
+  await scenario('★★ 行分批渲染时要等全(不能读半张表)', async (route) => {
+    const isLive = /type=live/.test(route.request().url());
+    const body = isLive
+      ? `<html><body><div id=h>${T(LH, [lR('直播A', '22,267,631 VND', '119,160,272 VND', '5.35')])}</div>
+         <script>setTimeout(function(){ document.getElementById('h').innerHTML=${JSON.stringify(
+           T(LH, [
+             lR('直播A', '22,267,631 VND', '119,160,272 VND', '5.35'),
+             lR('直播B', '16,089,887 VND', '79,124,158 VND', '4.92'),
+             lR('直播C', '10,000,000 VND', '50,000,000 VND', '5.00'),
+           ])
+         )}; }, 2200);</script></body></html>`
+      : `<html><body>${T(PH, [pR('商品1', '1,000,000 VND', '3,000,000 VND', '3.00')])}</body></html>`;
+    await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body });
+  }, (res) => {
+    const live = res.rows.filter((r) => r.kind === 'live');
+    check(`★★ 等到 3 条全渲染完才读(实际 ${live.length} 条)`, live.length === 3);
+    check('★★ 没有把半张表当成全部', live.some((r) => r.name === '直播C'));
+  });
+
+  await scenario('两个tab都返回直播表', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8',
+      body: `<html><body>${T(LH, [lR('直播A', '22,267,631 VND', '119,160,272 VND', '5.35')])}</body></html>` });
+  }, (res) => {
+    check('★ SPA 没切 tab 时判商品失败,不把直播当商品', (res.failed || []).includes('product'));
+    check('★ 结果里没有假的 product 行', res.rows.filter((r) => r.kind === 'product').length === 0);
+  });
 }
 
 // ---------------- 端到端集成自检 ----------------

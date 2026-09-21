@@ -30,7 +30,8 @@
     "waitUntil": "commit",
     "gotoRetries": 3,
     "tableTimeoutMs": 60000,
-    "blockHeavyResources": true
+    "blockHeavyResources": true,
+    "boardTableTimeoutMs": 90000
   },
   "output": {
     "mode": "local",
@@ -87,9 +88,15 @@
     "bitable": {
       "appToken": "填多维表格appToken",
       "tableId": "tbl填表ID",
-      "dailyTableId": "tbl填表ID"
+      "dailyTableId": "tbl填表ID",
+      "boardTableId": "tbl填表ID"
     },
-    "dailySummaryHour": 9
+    "dailySummaryHour": 9,
+    "board": {
+      "enabled": false,
+      "everyMinutes": 30,
+      "timeoutMinutes": 6
+    }
   },
   "autoDiscoverCampaigns": false,
   "stability": {

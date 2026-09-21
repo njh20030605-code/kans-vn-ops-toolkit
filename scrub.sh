@@ -31,7 +31,8 @@ sd 's/杨佳林(Jasper)/Jasper Yang/g; s/杨佳林/Jasper/g' "$R/feishu-api/bot.
 sd -E "s/const OWNER_OPEN_ID = 'ou_[0-9a-f]+'/const OWNER_OPEN_ID = process.env.FEISHU_OWNER_OPEN_ID || ''/" "$R/feishu-api/bot.js"
 for c in roi-monitor roi-monitor-win; do
   sd -E 's/"chatId": "oc_[0-9a-f]+"/"chatId": ""/; s/"rootFolderId": "[A-Za-z0-9_-]+"/"rootFolderId": ""/' "$R/$c/config.json"
-  # 广告计划 ID → 示例文件
+  # 广告计划 ID → 示例文件（顺手清掉手工备份，如 campaigns.备份-0921.json）
+  find "$R/$c" -maxdepth 1 -name 'campaigns*.json' ! -name campaigns.json ! -name campaigns.example.json -delete
   if [ -f "$R/$c/campaigns.json" ]; then
     python3 - "$R/$c" <<'PY'
 import json,sys,os
@@ -73,17 +74,31 @@ for pat in \
   's/QDp7bQnrcaSBtQszUQ8c86IBnRe/填多维表格appToken/g' \
   's/EmnkfFX7olLdS3driGScabKfnxd/填云盘文件夹token/g' \
   's/1sgOkmmUSLnjCOmk2WKuuXzGnAh7E5v_e/填GoogleDrive文件夹ID/g' \
-  -E's/"(tableId|dailyTableId|history)": "tbl[A-Za-z0-9]+"/"\1": "tbl填表ID"/g' ; do
+  -E's/"(tableId|dailyTableId|boardTableId|history)": "tbl[A-Za-z0-9]+"/"\1": "tbl填表ID"/g' ; do
   case "$pat" in
     -E*) opt=-E; expr="${pat#-E}" ;;
     *)   opt=""; expr="$pat" ;;
   esac
-  files=$(grep -rIl --exclude-dir=.git --exclude=scrub.sh -E 'gvh59x1f62p|AMD3bW73|DYfDb1Q7|XijobxWU|QDp7bQnr|EmnkfFX7|1sgOkmmU|"(tableId|dailyTableId|history)": "tbl' "$R" || true)
+  files=$(grep -rIl --exclude-dir=.git --exclude=scrub.sh -E 'gvh59x1f62p|AMD3bW73|DYfDb1Q7|XijobxWU|QDp7bQnr|EmnkfFX7|1sgOkmmU|"(tableId|dailyTableId|boardTableId|history)": "tbl' "$R" || true)
   for f in $files; do [ -n "$opt" ] && sd -E "$expr" "$f" || sd "$expr" "$f"; done
 done
 
+# 10. Windows 侧的版本更新说明是发给同事的内部件（含真实后台读数），不进公开仓库
+rm -f "$R/roi-monitor-win/覆盖说明.txt"
+
+# 11. 任何位置出现的多维表格数据表 ID（URL 里、正文里、配置里）
+(grep -rIl --exclude-dir=.git --exclude=scrub.sh -E 'tbl[A-Za-z0-9]{12,}' "$R" || true) | while read -r f; do
+  sd -E 's/tbl[A-Za-z0-9]{12,}/tbl填表ID/g' "$f"
+done
+
+# 12. 测试夹具里混进来的真实推广系列 / 商品 ID → 假号段（成对替换，断言不受影响）
+for m in 1870076773155954:1880000000000009 1870075962758033:1880000000000008 1731561143212017689:1740000000000000009; do
+  real="${m%%:*}"; fake="${m##*:}"
+  (grep -rIl --exclude-dir=.git --exclude=scrub.sh "$real" "$R" || true) | while read -r f; do sd "s/$real/$fake/g" "$f"; done
+done
+
 # 7. 自检：不该出现的东西
-if grep -rIn -E 'Ryan|Pham|杨佳林|ou_[0-9a-f]{20,}|oc_[0-9a-f]{20,}|1u_5ZKG9|njh20030605@|gvh59x1f62p|AMD3bW73|DYfDb1Q7|XijobxWU|QDp7bQnr|EmnkfFX7|1sgOkmmU' "$R" --exclude-dir=.git --exclude=scrub.sh; then
+if grep -rIn -E 'Ryan|Pham|杨佳林|ou_[0-9a-f]{20,}|oc_[0-9a-f]{20,}|1u_5ZKG9|njh20030605@|gvh59x1f62p|AMD3bW73|DYfDb1Q7|XijobxWU|QDp7bQnr|EmnkfFX7|1sgOkmmU|tbl[A-Za-z0-9]{12,}|1870076773155954|1870075962758033|1731561143212017689' "$R" --exclude-dir=.git --exclude=scrub.sh; then
   echo "❌ 脱敏未完成，见上"; exit 1
 fi
 echo "✅ scrub ok"

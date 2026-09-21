@@ -32,6 +32,9 @@ jobs:
         working-directory: roi-monitor
       - run: npm run selftest
         working-directory: roi-monitor
+      - name: 暴力测试（假后台，6 轮）
+        run: node src/index.js stress --rounds=6
+        working-directory: roi-monitor
 
   syntax:
     name: 语法检查
